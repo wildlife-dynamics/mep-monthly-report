@@ -190,7 +190,7 @@ class SubjectGroupVar(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    var: str = Field(..., title="")
+    var: str = Field(..., title="Subject Group Name")
 
 
 class SubjectGroup(BaseModel):

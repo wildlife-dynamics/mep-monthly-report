@@ -30,6 +30,9 @@ requirements:
 
 rjsf-overrides:
   properties:
+    Subject Group.properties.subject_group_var.properties.var.title: Subject Group Name
+    Subject Group.properties.subject_group_var.properties.var.default: Elephants
+    
     ndvi_method.properties.var.title: " "
     ndvi_method.properties.var.description: "Method to obtain NDVI values. 'MODIS MYD13A1 16-Day Composite': Uses pre-calculated NDVI from 16-day composites. Provides quality-filtered 'best pixel' values at 500m resolution with ~0.025 accuracy. Better for phenology studies but may saturate in dense canopies. 'MODIS MCD43A4 Daily NBAR': Uses daily nadir BRDF-adjusted reflectance. Computes NDVI from NIR/Red bands with view-angle correction for consistent measurements. Higher temporal resolution but more susceptible to cloud gaps."
     ndvi_method.properties.var.enum:

@@ -308,8 +308,9 @@
           "additionalProperties": false,
           "properties": {
             "var": {
-              "title": "",
-              "type": "string"
+              "title": "Subject Group Name",
+              "type": "string",
+              "default": "Elephants"
             }
           },
           "required": [
