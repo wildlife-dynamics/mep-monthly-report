@@ -33,13 +33,6 @@ rjsf-overrides:
     Subject Group.properties.subject_group_var.properties.var.title: Subject Group Name
     Subject Group.properties.subject_group_var.properties.var.default: Elephants
     
-    ndvi_method.properties.var.title: " "
-    ndvi_method.properties.var.description: "Method to obtain NDVI values. 'MODIS MYD13A1 16-Day Composite': Uses pre-calculated NDVI from 16-day composites. Provides quality-filtered 'best pixel' values at 500m resolution with ~0.025 accuracy. Better for phenology studies but may saturate in dense canopies. 'MODIS MCD43A4 Daily NBAR': Uses daily nadir BRDF-adjusted reflectance. Computes NDVI from NIR/Red bands with view-angle correction for consistent measurements. Higher temporal resolution but more susceptible to cloud gaps."
-    ndvi_method.properties.var.enum:
-      ["MODIS MYD13A1 16-Day Composite", "MODIS MCD43A4 Daily NBAR"]
-    ndvi_method.properties.var.default: "MODIS MYD13A1 16-Day Composite"
-    ndvi_method.required: []
-
 task-instance-defaults:
   skipif:
     conditions:
@@ -75,11 +68,6 @@ workflow:
     id: er_client_name
     task: set_er_connection
 
-  # connect to earthengine
-  - name: Connect to earth engine
-    id: gee_client
-    task: set_gee_connection
-
   # get events -- elephant sighting and persist file
   - name: Retrieve all events
     id: get_events_data
@@ -101,8 +89,6 @@ workflow:
         - geometry
         - created_at
         - event_details
-      event_types:
-        - mep_elephant_sighting
       raise_on_empty: true
       include_details: true
       include_updates: false
@@ -110,7 +96,7 @@ workflow:
       include_null_geometry: false
       include_display_values: false
 
-  - name: Exclude geom outliers from mep elephant sighting events
+  - name: Exclude geom outliers from events
     id: exclude_mep_outliers
     task: exclude_geom_outliers
     skipif:
@@ -121,7 +107,7 @@ workflow:
       df: ${{ workflow.get_events_data.return }}
       z_threshold: 3
 
-  - name: Remove elephant sighting invalid points
+  - name: Remove invalid event  points
     id: remove_mep_invalid_geoms
     task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
     skipif:
@@ -132,7 +118,16 @@ workflow:
       gdf: ${{ workflow.exclude_mep_outliers.return }}
       geometry_column: geometry
 
-  - name: Generate elephant sighting point layers
+  - name: Apply colormap to events 
+    id: apply_event_colormap 
+    task: apply_color_map
+    partial: 
+      df: ${{ workflow.remove_mep_invalid_geoms.return }}
+      input_column_name: event_type 
+      output_column_name: event_type_colors 
+      colormap: tab20
+
+  - name: Generate events point layers
     id: generate_mb_layers
     task: create_scatterplot_layer
     skipif:
@@ -141,21 +136,22 @@ workflow:
         - any_dependency_skipped
     partial:
       layer_style:
-        get_fill_color: [85, 107, 47]
-        get_line_color: [0, 0, 0, 200]
+        get_fill_color: event_type_colors
+        get_line_color: event_type_colors
         get_line_width: 0.55
         get_radius: 3.55
         opacity: 0.75
         stroked: true
       legend:
         title: Legend
-        values:
-          - label: Elephant sightings
-            color: "#556b2f"
-      geodataframe: ${{ workflow.remove_mep_invalid_geoms.return }}
+        label_column: event_type 
+        color_column: event_type_colors
+        sort: null 
+        label_suffix: null 
+      geodataframe: ${{ workflow.apply_event_colormap.return }}
 
   # global zoom value
-  - name: Elephant sightings zoom value
+  - name: Events zoom value
     id: sighting_zoom_value
     task: view_state_deck_gdf
     skipif:
@@ -212,7 +208,7 @@ workflow:
       filter: clean
       client: ${{ workflow.er_client_name.return }}
       time_range: ${{ workflow.time_range.return }}
-      subject_group_name: ${{ workflow.subject_group_var.return }}
+      subject_group_name: ${{ workflow.subject_group_var.return }} # pass this to word doc
       raise_on_empty: false
       include_details: true
       include_subjectsource_details: true
@@ -464,18 +460,6 @@ workflow:
       raise_on_empty: true
       sub_page_size: 100
       patrols_overlap_daterange: true
-      patrol_types:
-        - "MEP_routine_vehicle_patrol_bravo_team"
-        - "MEP_routine_vehicle_patrol_foxtrot_team"
-        - "MEP_Routine_Vehicle_Patrol - Mwaluganje Team"
-        - "MEP_routine_vehicle_patrol_hq_team"
-        - "MEP_routine_vehicle_patrol_delta_team"
-        - "MEP_routine_vehicle_patrol_echo_team"
-        - "MEP_routine_vehicle_patrol_kilo_team"
-        - "MEP_routine_vehicle_patrol_mobile_team"
-        - "MEP_routine_vehicle_patrol_alpha_team"
-        - "MEP_routine_vehicle_patrol_charlie_team"
-        - "MEP_routine_vehicle_patrol_golf_team"
 
   - name: Transform observations to relocations
     id: vehicle_patrol_reloc
@@ -608,18 +592,6 @@ workflow:
       raise_on_empty: true
       sub_page_size: 100
       patrols_overlap_daterange: true
-      patrol_types:
-        - "MEP_routine_foot_patrol_bravo_team"
-        - "MEP_routine_foot_patrol_foxtrot_team"
-        - "MEP_routine_foot_patrol_HQ_team"
-        - "MEP_routine_foot_patrol_ Delta_Team"
-        - "MEP_routine_foot_patrol_echo_team"
-        - "MEP_routine_foot_patrol_kilo_team"
-        - "mwaluganje_routine_foot_patrol_alpha_team"
-        - "MEP_routine_foot_patrol_alpha_team"
-        - "MEP_routine_foot_patrol_charlie_team"
-        - "MEP_routine_foot_patrol_golf_team"
-        - "MEP_routine_foot_patrol_marmanet"
 
   - name: Transform observations to relocations
     id: foot_patrol_reloc
@@ -741,143 +713,6 @@ workflow:
       filename: foot_patrols_map.html
       text: ${{ workflow.draw_foot_map.return }} # convert this to png
 
-  # proceed to add the ndvi charts now
-  - name: Download ROI file and persist
-    id: download_roi_file
-    task: fetch_and_persist_file
-    partial:
-      url: https://www.dropbox.com/scl/fi/2bpktq45zns9igryl6q9l/ROIs.gpkg?rlkey=sojch2njmvsa3i5a3f3pt11xq&st=9x70z6z1&dl=0
-      output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      overwrite_existing: false
-      retries: 3
-      unzip: false
-
-  - name: Load roi
-    id: load_roi
-    task: load_df
-    partial:
-      file_path: ${{ workflow.download_roi_file.return }}
-      layer: null
-      deserialize_json: false
-
-  - name: Transform gdf to epsg 4326
-    id: transform_roi
-    task: transform_gdf_crs
-    partial:
-      gdf: ${{ workflow.load_roi.return }}
-      crs: "EPSG:4326"
-
-  - name: Split values by ranch name
-    id: split_roi_groups
-    task: split_groups
-    partial:
-      df: ${{ workflow.transform_roi.return }}
-      groupers: ${{ workflow.groupers.return }}
-
-  - name: NDVI Method
-    id: ndvi_method
-    task: set_string_var
-
-  - name: "NDVI Trend"
-    id: calculate_ndvi
-    task: calculate_ndvi_range
-    partial:
-      client: ${{ workflow.gee_client.return }}
-      time_range: ${{ workflow.time_range.return }}
-      ndvi_method: ${{ workflow.ndvi_method.return }}
-      baseline_time_range: null # todo: add baseline time range when supported by web
-      image_size: 1000000000 # todo: use baseline time range when supported by web
-    mapvalues:
-      argnames: roi
-      argvalues: ${{ workflow.split_roi_groups.return}}
-
-  - name: Persist NDVI Data
-    id: persist_ndvi_data
-    task: persist_df_wrapper
-    skipif:
-      conditions:
-        - never
-    partial:
-      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      sanitize: true
-      filename_prefix: ndvi
-    mapvalues:
-      argnames: df
-      argvalues: ${{ workflow.calculate_ndvi.return }}
-
-  - name: Draw NDVI
-    id: draw_ndvi
-    task: draw_historic_timeseries
-    partial:
-      current_value_column: "NDVI"
-      current_value_title: "NDVI"
-      historic_min_column: "min"
-      historic_max_column: "max"
-      historic_mean_column: "mean"
-      historic_band_title: "Historic Min-Max"
-      historic_mean_title: "Historic Mean"
-      layout_style: null
-      upper_lower_band_style:
-        mode: lines
-        line:
-          color: "rgba(144, 238, 144, 0.8)"
-        fillcolor: "rgba(144, 238, 144, 0.3)"
-      historic_mean_style: null
-      current_value_style: null
-      time_column: img_date
-    mapvalues:
-      argnames: dataframe
-      argvalues: ${{ workflow.calculate_ndvi.return}}
-
-  - name: Get unique area name
-    id: get_area_name
-    task: dataframe_column_first_unique_str
-    partial:
-      column_name: "name"
-    mapvalues:
-      argnames: df
-      argvalues: ${{ workflow.split_roi_groups.return }}
-
-  - name: Format strings extracted from roi
-    id: format_area_name
-    task: clean_string
-    mapvalues:
-      argnames: s
-      argvalues: ${{ workflow.get_area_name.return }}
-
-  - name: Combine area names and ndvi charts
-    id: zip_area_ndvi
-    task: zip_groupbykey
-    partial:
-      sequences:
-        - ${{ workflow.draw_ndvi.return }}
-        - ${{ workflow.format_area_name.return }}
-
-  - name: Persist NDVI Chart as Text
-    id: persist_ndvi
-    task: persist_text
-    partial:
-      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-    mapvalues:
-      argnames:
-        - text
-        - filename_suffix
-      argvalues: ${{ workflow.zip_area_ndvi.return }}
-
-  - name: Convert ndvi ranch chart to png
-    id: convert_ndvi_png
-    task: html_to_png
-    partial:
-      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      config:
-        full_page: false
-        device_scale_factor: 2.0
-        wait_for_timeout: 10
-        max_concurrent_pages: 3
-    mapvalues:
-      argnames: html_path
-      argvalues: ${{ workflow.persist_ndvi.return }}
-
   # html to png
   - name: Convert elephant sighting events html to png
     id: convert_sightings_png
@@ -888,7 +723,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 10 #40000
         max_concurrent_pages: 1
 
   - name: Convert elephant speedmap html to png
@@ -900,7 +735,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 10 #40000
         max_concurrent_pages: 1
 
   - name: Convert vehicle patrol html to png
@@ -912,7 +747,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 10 #40000
         max_concurrent_pages: 1
 
   - name: Convert foot patrol html to png
@@ -924,7 +759,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 10 #40000
         max_concurrent_pages: 1
 
   - name: Convert collared plot html to png
@@ -987,7 +822,7 @@ workflow:
       speedmap_path: ${{ workflow.convert_speedmap_png.return }}
       foot_patrols_map_path: ${{ workflow.convert_foot_png.return }}
       vehicle_patrol_map_path: ${{ workflow.convert_vehicle_png.return }}
-
+      subject_group: ${{ workflow.subject_group_var.return }} 
       collared_elephant_plot_paths: ${{ workflow.convert_collared_png.return }}
       sitrep_df_path: ${{ workflow.persist_sitrep_csv.return }}
 
@@ -1009,3 +844,28 @@ workflow:
       widgets: []
       time_range: ${{ workflow.time_range.return}}
       groupers: ${{ workflow.groupers.return }}
+
+        # - "MEP_routine_foot_patrol_bravo_team"
+        # - "MEP_routine_foot_patrol_foxtrot_team"
+        # - "MEP_routine_foot_patrol_HQ_team"
+        # - "MEP_routine_foot_patrol_ Delta_Team"
+        # - "MEP_routine_foot_patrol_echo_team"
+        # - "MEP_routine_foot_patrol_kilo_team"
+        # - "mwaluganje_routine_foot_patrol_alpha_team"
+        # - "MEP_routine_foot_patrol_alpha_team"
+        # - "MEP_routine_foot_patrol_charlie_team"
+        # - "MEP_routine_foot_patrol_golf_team"
+        # - "MEP_routine_foot_patrol_marmanet"
+
+
+        # - "MEP_routine_vehicle_patrol_bravo_team"
+        # - "MEP_routine_vehicle_patrol_foxtrot_team"
+        # - "MEP_Routine_Vehicle_Patrol - Mwaluganje Team"
+        # - "MEP_routine_vehicle_patrol_hq_team"
+        # - "MEP_routine_vehicle_patrol_delta_team"
+        # - "MEP_routine_vehicle_patrol_echo_team"
+        # - "MEP_routine_vehicle_patrol_kilo_team"
+        # - "MEP_routine_vehicle_patrol_mobile_team"
+        # - "MEP_routine_vehicle_patrol_alpha_team"
+        # - "MEP_routine_vehicle_patrol_charlie_team"
+        # - "MEP_routine_vehicle_patrol_golf_team"
