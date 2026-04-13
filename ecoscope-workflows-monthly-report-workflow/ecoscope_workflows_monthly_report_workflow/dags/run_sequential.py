@@ -1361,7 +1361,7 @@ def main(params: Params):
             config={
                 "full_page": False,
                 "device_scale_factor": 2.0,
-                "wait_for_timeout": 10,
+                "wait_for_timeout": 40000,
                 "max_concurrent_pages": 1,
             },
             **(params_dict.get("convert_sightings_png") or {}),
@@ -1387,7 +1387,7 @@ def main(params: Params):
             config={
                 "full_page": False,
                 "device_scale_factor": 2.0,
-                "wait_for_timeout": 10,
+                "wait_for_timeout": 40000,
                 "max_concurrent_pages": 1,
             },
             **(params_dict.get("convert_speedmap_png") or {}),
@@ -1413,7 +1413,7 @@ def main(params: Params):
             config={
                 "full_page": False,
                 "device_scale_factor": 2.0,
-                "wait_for_timeout": 10,
+                "wait_for_timeout": 40000,
                 "max_concurrent_pages": 1,
             },
             **(params_dict.get("convert_vehicle_png") or {}),
@@ -1439,7 +1439,7 @@ def main(params: Params):
             config={
                 "full_page": False,
                 "device_scale_factor": 2.0,
-                "wait_for_timeout": 10,
+                "wait_for_timeout": 40000,
                 "max_concurrent_pages": 1,
             },
             **(params_dict.get("convert_foot_png") or {}),

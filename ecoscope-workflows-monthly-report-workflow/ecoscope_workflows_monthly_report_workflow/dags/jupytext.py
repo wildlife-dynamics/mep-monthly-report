@@ -2000,7 +2000,7 @@ convert_sightings_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 10,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_sightings_png_params,
@@ -2038,7 +2038,7 @@ convert_speedmap_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 10,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_speedmap_png_params,
@@ -2076,7 +2076,7 @@ convert_vehicle_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 10,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_vehicle_png_params,
@@ -2114,7 +2114,7 @@ convert_foot_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 10,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_foot_png_params,
