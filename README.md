@@ -1,6 +1,6 @@
 # MEP Monthly Report — User Guide
 
-This guide walks you through configuring and running the MEP Monthly Report workflow, which ingests elephant sightings, collar GPS tracks, vehicle and foot patrol data, and NDVI trends from EarthRanger and Google Earth Engine to produce a comprehensive monthly report for the Mara Elephant Project.
+This guide walks you through configuring and running the MEP Monthly Report workflow, which ingests events, collar GPS tracks, and vehicle and foot patrol data from EarthRanger to produce a comprehensive monthly report for the Mara Elephant Project.
 
 ---
 
@@ -8,10 +8,9 @@ This guide walks you through configuring and running the MEP Monthly Report work
 
 The workflow delivers, for each run:
 
-- **4 maps** — elephant sightings scatter map, GPS speedmap, vehicle patrol trajectories map, and foot patrol trajectories map
+- **4 maps** — events scatter map (coloured by event type), GPS speedmap, vehicle patrol trajectories map, and foot patrol trajectories map
 - **Per-subject collar voltage charts** — GPS fix-rate and voltage timeline vs previous period for each collared animal
 - **1 sitrep CSV** — situation report with incident counts by region
-- **NDVI trend charts** — one per named region of interest, showing current NDVI vs historic min/max/mean band
 - **A Word document report** — cover page and populated content page merged into a single monthly report
 
 ---
@@ -20,8 +19,7 @@ The workflow delivers, for each run:
 
 Before running the workflow, ensure you have:
 
-- Access to an **EarthRanger** instance with `mep_elephant_sighting` events, subject group observations, vehicle patrol, and foot patrol data logged for the analysis period
-- Access to a **Google Earth Engine** service account with a private key in JSON format
+- Access to an **EarthRanger** instance with events, subject group observations, vehicle patrol, and foot patrol data logged for the analysis period
 
 ---
 
@@ -41,24 +39,9 @@ Then click **Add Template**.
 
 ---
 
-### Step 2 — Configure Connection
+### Step 2 — Add an EarthRanger Connection
 
-Navigate to **Data Sources** and click **Connect**. A dialog will appear prompting you to **Select Data Source Type**. This workflow requires two connections:
-
-| Data Source Type | Purpose |
-|-----------------|---------|
-| **EarthRanger** | Pull elephant sighting events, subject group observations, vehicle and foot patrol data, and sitrep events |
-| **Google Earth Engine** | Compute NDVI trend time series per region of interest |
-
-Select **EarthRanger** first and complete Step 3, then repeat and select **Google Earth Engine** for Step 4.
-
-![Configure Connection](data/screenshots/configure_connection.png)
-
----
-
-### Step 3 — Add an EarthRanger Connection
-
-After selecting **EarthRanger** in Step 2, fill in the connection form:
+Navigate to **Data Sources** and add a new EarthRanger connection. Fill in:
 
 - **Data Source Name** — a label to identify this connection
 - **EarthRanger URL** — your instance URL (e.g. `your-site.pamdas.org`)
@@ -66,28 +49,11 @@ After selecting **EarthRanger** in Step 2, fill in the connection form:
 
 > Credentials are not validated at setup time. Any authentication errors will appear when the workflow runs.
 
-Click **Connect** to save.
-
 ![EarthRanger Connection](data/screenshots/er_connection.png)
 
 ---
 
-### Step 4 — Add a Google Earth Engine Connection
-
-After selecting **Google Earth Engine** in Step 2, fill in the connection form:
-
-- **Data Source Name** — a label to identify this connection
-- **Private Key** — click **Browse** to select your GEE service account private key file (JSON format)
-
-> To generate a private key, follow the instructions in the [Setup Guide](https://developers.google.com/earth-engine/guides/service_account). The key is stored encrypted and used only to authenticate with Google Earth Engine.
-
-Click **Connect** to save.
-
-![Google Earth Engine Connection](data/screenshots/gee_connection.png)
-
----
-
-### Step 5 — Select the Workflow
+### Step 3 — Select the Workflow
 
 After the template is added, it appears in the **Workflow Templates** list as **mep-monthly-report**. Click it to open the workflow configuration form.
 
@@ -97,7 +63,7 @@ After the template is added, it appears in the **Workflow Templates** list as **
 
 ---
 
-### Step 6 — Set Workflow Details and Analysis Time Range
+### Step 4 — Set Workflow Details and Analysis Time Range
 
 The configuration form opens with two sections at the top.
 
@@ -116,15 +82,15 @@ The configuration form opens with two sections at the top.
 | Since | Start date and time of the analysis period |
 | Until | End date and time of the analysis period |
 
-All events, observations, patrol data, and GEE NDVI values are fetched within this window.
+All events, observations, and patrol data are fetched within this window.
 
 ![Set Workflow Details and Analysis Time Range](data/screenshots/set_workflow_details_time_range.png)
 
 ---
 
-### Step 7 — Configure Base Maps, Connect to EarthRanger and Earth Engine, Set Subject Group, and Retrieve Vehicle Patrols
+### Step 5 — Configure Base Maps, Connect to EarthRanger, Set Subject Group, and Retrieve Vehicle Patrols
 
-Scroll down to configure the next five sections.
+Scroll down to configure the next four sections.
 
 **Configure base map layers**
 
@@ -132,54 +98,31 @@ Expand **Advanced Configurations** to select the base map tile layers displayed 
 
 **Connect to earth ranger**
 
-Select the EarthRanger data source configured in Step 3 from the **Data Source** dropdown (e.g. `Amboseli Trust for Elephants`).
-
-**Connect to earth engine**
-
-Select the Google Earth Engine data source configured in Step 4 from the **Data Source** dropdown.
+Select the EarthRanger data source configured in Step 2 from the **Data Source** dropdown.
 
 **Subject Group**
 
-Enter the name of the EarthRanger subject group in the field (e.g. `MEP`). This group is used to generate collar voltage charts and the overall GPS speedmap.
+Enter the name of the EarthRanger subject group in the field (e.g. `MEP`). This group is used to generate collar voltage charts and the overall GPS speedmap. The subject group name is also included in the Word report.
 
 **Retrieve vehicle patrols**
 
 Expand **Advanced Configurations** to review or override the default vehicle patrol trajectory segment filter thresholds (max length: 5 000 m, max time: 18 000 s, speed: 10–100 km/h).
 
-![Configure Base Maps, Connect to EarthRanger and Earth Engine, Subject Group, and Retrieve Vehicle Patrols](data/screenshots/configure_basemaps_connect_er_ee_subject_group_vehicle_patrols.png)
+![Configure Base Maps, Connect to EarthRanger, Subject Group, and Retrieve Vehicle Patrols](data/screenshots/configure_basemaps_connect_er_subject_group_vehicle_patrols.png)
 
 ---
 
-### Step 8 — Configure Foot Patrols, NDVI Method, NDVI Trend, and Persist NDVI Data
+### Step 6 — Configure Foot Patrols
 
-Scroll down to configure the final four sections, then click **Submit**.
+Scroll down to configure the final section, then click **Submit**.
 
 **Retrieve foot patrols**
 
 Expand **Advanced Configurations** to review or override the default foot patrol trajectory segment filter thresholds (max length: 5 000 m, max time: 14 400 s, speed: 0.5–9 km/h).
 
-**NDVI Method**
-
-Select the method used to obtain NDVI values from Google Earth Engine:
-
-| Option | Description |
-|--------|-------------|
-| **MODIS MYD13A1 16-Day Composite** | Pre-calculated NDVI from 16-day composites. Quality-filtered 'best pixel' values at 500 m resolution. Better for phenology studies but may saturate in dense canopies. |
-| **MODIS MCD43A4 Daily NBAR** | Daily nadir BRDF-adjusted reflectance. NDVI computed from NIR/Red bands with view-angle correction. Higher temporal resolution but more susceptible to cloud gaps. |
-
-The default is **MODIS MYD13A1 16-Day Composite**.
-
-**NDVI Trend**
-
-Set the **Grouping Unit** for the NDVI time-series aggregation (e.g. `month`). This controls the temporal resolution at which NDVI values are grouped and plotted against the historic min/max/mean band.
-
-**Persist NDVI Data**
-
-Set the **Filetype** for the exported NDVI data. The default output format is **csv**.
-
 Once all parameters are set, click **Submit**.
 
-![Configure Foot Patrols, NDVI Method, NDVI Trend, and Persist NDVI Data](data/screenshots/configure foot patrols ndvi method trend and persist ndvi data.png)
+![Configure Foot Patrols](data/screenshots/configure_foot_patrols.png)
 
 ---
 
@@ -187,27 +130,25 @@ Once all parameters are set, click **Submit**.
 
 Once submitted, the runner will:
 
-1. Fetch `mep_elephant_sighting` events; remove spatial outliers and null geometries; generate sightings scatter map.
+1. Fetch all events; remove spatial outliers and null geometries; apply tab20 colour palette by event type; generate events scatter map.
 2. Fetch subject group observations for the current and previous periods; produce per-subject collar voltage charts.
 3. Convert GPS observations to trajectories; classify speed into 6 bins; generate speedmap.
 4. Compile sitrep report from EarthRanger events; persist as CSV.
-5. Fetch vehicle patrol observations for 11 team types; convert to trajectories; generate vehicle patrol map.
-6. Fetch foot patrol observations for 11 team types; convert to trajectories; generate foot patrol map.
-7. Download the ROI GeoPackage from Dropbox; split by named area; compute NDVI trends per ROI via Google Earth Engine.
-8. Render NDVI trend charts (current NDVI vs historic min/max/mean band); persist as HTML and CSV; convert to PNG.
-9. Download Word templates from Dropbox; populate cover page and content page with all maps, charts, and sitrep data.
-10. Merge cover page and content page into the final Word report.
-11. Save all outputs to the directory specified by `ECOSCOPE_WORKFLOWS_RESULTS`.
+5. Fetch vehicle patrol observations; convert to trajectories; generate vehicle patrol map.
+6. Fetch foot patrol observations; convert to trajectories; generate foot patrol map.
+7. Download Word templates from Dropbox; populate cover page and content page with all maps, charts, and sitrep data.
+8. Merge cover page and content page into the final Word report.
+9. Save all outputs to the directory specified by `ECOSCOPE_WORKFLOWS_RESULTS`.
 
 ---
 
 ## Output Files
 
-All outputs are written to `$ECOSCOPE_WORKFLOWS_RESULTS/`. Files marked with `<subject>` are produced once per collared subject; files marked with `<area>` are produced once per named ROI.
+All outputs are written to `$ECOSCOPE_WORKFLOWS_RESULTS/`. Files marked with `<subject>` are produced once per collared subject.
 
 | File | Description |
 |------|-------------|
-| `elephant_sightings_map.html` / `.png` | Scatter map of elephant sighting events |
+| `elephant_sightings_map.html` / `.png` | Scatter map of all events, coloured by event type |
 | `speedmap.html` / `.png` | GPS trajectories coloured by 6-bin speed classification |
 | `vehicle_patrols_map.html` / `.png` | Vehicle patrol trajectories coloured by team |
 | `foot_patrols_map.html` / `.png` | Foot patrol trajectories coloured by team |
@@ -215,8 +156,6 @@ All outputs are written to `$ECOSCOPE_WORKFLOWS_RESULTS/`. Files marked with `<s
 | `foot_patrol_trajectories.geoparquet` | Raw foot patrol trajectory data |
 | `sitrep_report.csv` | Situation report — incident counts and categories by region |
 | `<subject>_collar_voltage.html` / `.png` | Collar voltage and GPS fix-rate chart (current vs previous period) |
-| `ndvi_<area>.html` / `.png` | NDVI trend chart vs historic min/max/mean band |
-| `ndvi_<area>.csv` | NDVI time-series data per region |
 | `mep_cover_page.docx` | Populated Word cover page |
 | `mep_context.docx` | Populated Word content page |
 | `overall_mep_monthly_report.docx` | Final merged Word monthly report |

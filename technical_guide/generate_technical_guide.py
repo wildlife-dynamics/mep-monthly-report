@@ -120,7 +120,7 @@ story += [
     p("MEP Monthly Report", TITLE),
     p("Technical Guide", SUBTITLE),
     sp(4),
-    p("Elephant sightings, patrols, collar voltages, NDVI, and sitrep analysis", SUBTITLE),
+    p("Elephant sightings, patrols, collar voltages, and sitrep analysis", SUBTITLE),
     sp(4),
     p(f"Generated {date.today().strftime('%B %d, %Y')}", META),
     p("Workflow id: <b>monthly_report</b>", META),
@@ -133,37 +133,35 @@ story += [
 story += [
     h1("1. Overview"),
     hr(),
-    p("The <b>monthly_report</b> workflow fetches data from EarthRanger and "
-      "Google Earth Engine to produce the MEP (Mara Elephant Project) Monthly "
-      "Report. It covers elephant sightings, collar GPS speedmaps, vehicle and "
-      "foot patrol trajectories, per-subject collar voltage charts, an NDVI "
-      "trend analysis per region of interest, and a situation report (sitrep). "
-      "All outputs are assembled into a populated Word document."),
+    p("The <b>monthly_report</b> workflow fetches data from EarthRanger to "
+      "produce the MEP (Mara Elephant Project) Monthly Report. It covers "
+      "all events (scatter map coloured by event type), collar GPS speedmaps, "
+      "vehicle and foot patrol trajectories, per-subject collar voltage charts, "
+      "and a situation report (sitrep). All outputs are assembled into a "
+      "populated Word document."),
     sp(4),
     p("The workflow delivers:"),
-    bullet("1 elephant sightings scatter map"),
+    bullet("1 events scatter map (all event types, coloured by type via tab20 palette)"),
     bullet("1 elephant GPS speedmap"),
     bullet("1 vehicle patrol trajectories map"),
     bullet("1 foot patrol trajectories map"),
     bullet("Per-subject collar voltage charts (one per collared animal)"),
     bullet("1 sitrep CSV report"),
-    bullet("NDVI trend charts — one per named region of interest (ROI)"),
     bullet("A Word document report — cover page + populated content page"),
     sp(6),
     h2("Output summary"),
     make_table(
         [
             ["Output type", "Count", "Description"],
-            ["Elephant sightings map",    "1",          "Scatter layer of mep_elephant_sighting events"],
-            ["Speedmap",                  "1",          "GPS trajectories coloured by 6-bin speed classification"],
-            ["Vehicle patrol map",        "1",          "Vehicle patrol trajectories coloured by team (viridis)"],
-            ["Foot patrol map",           "1",          "Foot patrol trajectories coloured by team (viridis)"],
-            ["Vehicle patrol GeoParquet", "1",          "Raw vehicle patrol trajectory data"],
-            ["Foot patrol GeoParquet",    "1",          "Raw foot patrol trajectory data"],
-            ["Collar voltage charts",     "1 per subject", "Voltage/GPS fix timeline vs previous period"],
-            ["Sitrep CSV",                "1",          "Situation report compiled from EarthRanger events"],
-            ["NDVI charts",               "1 per ROI",  "NDVI trend vs historic min/max/mean band per area"],
-            ["Word report",               "1",          "Cover page + content page merged into final docx"],
+            ["Events scatter map",         "1",          "Scatter layer of all events, coloured by event type (tab20)"],
+            ["Speedmap",                   "1",          "GPS trajectories coloured by 6-bin speed classification"],
+            ["Vehicle patrol map",         "1",          "Vehicle patrol trajectories coloured by team (viridis)"],
+            ["Foot patrol map",            "1",          "Foot patrol trajectories coloured by team (viridis)"],
+            ["Vehicle patrol GeoParquet",  "1",          "Raw vehicle patrol trajectory data"],
+            ["Foot patrol GeoParquet",     "1",          "Raw foot patrol trajectory data"],
+            ["Collar voltage charts",      "1 per subject", "Voltage/GPS fix timeline vs previous period"],
+            ["Sitrep CSV",                 "1",          "Situation report compiled from EarthRanger events"],
+            ["Word report",                "1",          "Cover page + content page merged into final docx"],
         ],
         [4.5*cm, 2.5*cm, W - 7*cm],
     ),
@@ -186,7 +184,7 @@ story += [
             ["ecoscope-workflows-ext-ste",     "0.0.18.*",  "ecoscope-workflows-custom"],
             ["ecoscope-workflows-ext-mnc",     "0.0.7.*",   "ecoscope-workflows-custom"],
             ["ecoscope-workflows-ext-big-life","0.0.8.*",   "ecoscope-workflows-custom"],
-            ["ecoscope-workflows-ext-mep",     "0.0.10.*",  "ecoscope-workflows-custom"],
+            ["ecoscope-workflows-ext-mep",     "0.0.13.*",  "ecoscope-workflows-custom"],
         ],
         [6.5*cm, 3*cm, W - 9.5*cm],
     ),
@@ -195,24 +193,19 @@ story += [
     make_table(
         [
             ["Connection", "Task", "Purpose"],
-            ["EarthRanger",        "set_er_connection",
-             "Fetch elephant sighting events, subject group observations, "
+            ["EarthRanger", "set_er_connection",
+             "Fetch events, subject group observations, "
              "vehicle and foot patrol data, and sitrep events"],
-            ["Google Earth Engine","set_gee_connection",
-             "Compute NDVI trend time series per region of interest"],
         ],
         [3.5*cm, 4*cm, W - 7.5*cm],
     ),
     sp(6),
     h2("2.3  Dropbox files"),
-    p("Three files are downloaded from Dropbox at runtime if not already "
-      "present (<b>overwrite_existing: false</b>, retries: 3):"),
+    p("Two Word template files are downloaded from Dropbox at runtime if not "
+      "already present (<b>overwrite_existing: false</b>, retries: 3):"),
     make_table(
         [
             ["File", "Purpose", "Dropbox URL (abbreviated)"],
-            ["ROIs.gpkg",
-             "Region-of-interest polygons for NDVI analysis — one record per named area",
-             "dropbox.com/…/ROIs.gpkg?rlkey=sojch2njmvsa3i5a3f3pt11xq"],
             ["mep_monthly_report.docx",
              "Word template for the cover page (title, report period, prepared-by field)",
              "dropbox.com/…/mep_monthly_report.docx?rlkey=nbibg8ulnlz0w4q53jw2db6y3"],
@@ -228,51 +221,33 @@ story += [
       "Any tile layer supported by deck.gl can be specified."),
     sp(6),
     h2("2.5  Grouper"),
-    p("The workflow groups all data by <b>name</b> (subject name / ROI name). "
-      "The rjsf-overrides block fixes the grouper to <b>index_name: name</b> — "
+    p("The workflow groups all data by <b>name</b> (subject name). "
+      "The grouper is fixed to <b>index_name: name</b> — "
       "users cannot change the grouping dimension."),
     sp(6),
     h2("2.6  Subject group"),
     p("A user-provided string parameter (<b>Subject Group Name</b>) is passed "
-      "to both the current-period and previous-period observation fetches. "
+      "to both the current-period and previous-period observation fetches, and "
+      "also included in the Word report content page context. "
       "Every subject in the group receives a collar voltage chart."),
-    sp(6),
-    h2("2.7  NDVI method"),
-    p("A user-selectable string parameter (<b>NDVI Method</b>) controls how "
-      "NDVI values are obtained from Google Earth Engine:"),
-    make_table(
-        [
-            ["Option", "Description"],
-            ["MODIS MYD13A1 16-Day Composite",
-             "Pre-calculated NDVI from 16-day composites. Quality-filtered 'best pixel' "
-             "values at 500 m resolution (~0.025 accuracy). Better for phenology studies "
-             "but may saturate in dense canopies."],
-            ["MODIS MCD43A4 Daily NBAR",
-             "Daily nadir BRDF-adjusted reflectance. NDVI computed from NIR/Red bands "
-             "with view-angle correction for consistent measurements. Higher temporal "
-             "resolution but more susceptible to cloud gaps."],
-        ],
-        [5*cm, W - 5*cm],
-    ),
-    note("The default NDVI method is MODIS MYD13A1 16-Day Composite."),
     PageBreak(),
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 3. ELEPHANT SIGHTINGS PIPELINE
+# 3. EVENTS PIPELINE
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("3. Elephant Sightings Pipeline"),
+    h1("3. Events Pipeline"),
     hr(),
-    p("Elephant sighting events of type <b>mep_elephant_sighting</b> are fetched, "
-      "cleaned, and rendered as a scatter map."),
+    p("All events within the analysis time range are fetched, cleaned, "
+      "coloured by event type, and rendered as a scatter map."),
     sp(6),
-    h2("3.1  Event retrieval and cleaning"),
+    h2("3.1  Event retrieval, cleaning, and colourmap"),
     make_table(
         [
             ["Step", "Task", "Detail"],
             ["1", "get_events",
-             "Fetch mep_elephant_sighting events for the analysis time range. "
+             "Fetch all events for the analysis time range (no event_type filter). "
              "Columns retained: id, time, event_type, event_category, reported_by, "
              "serial_number, geometry, created_at, event_details. "
              "include_details: true, include_null_geometry: false, "
@@ -282,24 +257,30 @@ story += [
              "3 standard deviations from the centroid)."],
             ["3", "drop_null_geometry",
              "Drop any rows with null geometry after outlier removal."],
+            ["4", "apply_color_map",
+             "Apply the tab20 palette to the event_type column, writing colours "
+             "to the output column event_type_colors. Each distinct event type "
+             "receives a unique colour from the tab20 palette."],
         ],
         [1.2*cm, 4*cm, W - 5.2*cm],
     ),
     sp(6),
-    h2("3.2  Sightings scatter map"),
+    h2("3.2  Events scatter map"),
     make_table(
         [
             ["Parameter", "Value"],
-            ["Layer type",       "create_scatterplot_layer"],
-            ["Fill color (RGBA)","[85, 107, 47, 255] — dark olive green"],
-            ["Line color (RGBA)","[0, 0, 0, 200]"],
-            ["Line width",       "0.55"],
-            ["Radius",           "3.55 m"],
-            ["Opacity",          "0.75"],
-            ["Stroked",          "true"],
-            ["Legend label",     "Elephant sightings (#556b2f)"],
-            ["Max zoom",         "10"],
-            ["Screenshot timeout","40 000 ms (map tile rendering)"],
+            ["Layer type",         "create_scatterplot_layer"],
+            ["Fill color",         "event_type_colors (tab20, dynamic per event type)"],
+            ["Line color",         "event_type_colors (same column)"],
+            ["Line width",         "0.55"],
+            ["Radius",             "3.55 m"],
+            ["Opacity",            "0.75"],
+            ["Stroked",            "true"],
+            ["Legend title",       "Legend"],
+            ["Legend label column","event_type"],
+            ["Legend color column","event_type_colors"],
+            ["Max zoom",           "10"],
+            ["Screenshot timeout", "40 000 ms (map tile rendering)"],
         ],
         [5*cm, W - 5*cm],
     ),
@@ -408,24 +389,9 @@ story += [
     h2("5.1  Patrol retrieval"),
     p("Task: <b>get_patrol_observations</b> with parameters: "
       "include_patrol_details: true, raise_on_empty: true, sub_page_size: 100, "
-      "patrols_overlap_daterange: true. The following 11 patrol types are fetched:"),
-    make_table(
-        [
-            ["Patrol type value"],
-            ["MEP_routine_vehicle_patrol_bravo_team"],
-            ["MEP_routine_vehicle_patrol_foxtrot_team"],
-            ["MEP_Routine_Vehicle_Patrol - Mwaluganje Team"],
-            ["MEP_routine_vehicle_patrol_hq_team"],
-            ["MEP_routine_vehicle_patrol_delta_team"],
-            ["MEP_routine_vehicle_patrol_echo_team"],
-            ["MEP_routine_vehicle_patrol_kilo_team"],
-            ["MEP_routine_vehicle_patrol_mobile_team"],
-            ["MEP_routine_vehicle_patrol_alpha_team"],
-            ["MEP_routine_vehicle_patrol_charlie_team"],
-            ["MEP_routine_vehicle_patrol_golf_team"],
-        ],
-        [W],
-    ),
+      "patrols_overlap_daterange: true. No patrol_type filter is applied — "
+      "all vehicle patrol types present in EarthRanger for the time range "
+      "are included."),
     sp(6),
     h2("5.2  Relocations"),
     p("Task: <b>process_relocations</b>. Columns retained: patrol_id, "
@@ -471,31 +437,11 @@ story += [
     h1("6. Foot Patrol Pipeline"),
     hr(),
     p("The foot patrol pipeline mirrors the vehicle patrol pipeline but uses "
-      "different patrol types and trajectory thresholds appropriate for "
-      "walking speeds."),
+      "different trajectory thresholds appropriate for walking speeds. "
+      "No patrol_type filter is applied — all foot patrol types present "
+      "in EarthRanger for the time range are included."),
     sp(6),
-    h2("6.1  Patrol types"),
-    p("Task: <b>get_patrol_observations</b> with the same flags as vehicle "
-      "patrols. The following 11 foot patrol types are fetched:"),
-    make_table(
-        [
-            ["Patrol type value"],
-            ["MEP_routine_foot_patrol_bravo_team"],
-            ["MEP_routine_foot_patrol_foxtrot_team"],
-            ["MEP_routine_foot_patrol_HQ_team"],
-            ["MEP_routine_foot_patrol_ Delta_Team"],
-            ["MEP_routine_foot_patrol_echo_team"],
-            ["MEP_routine_foot_patrol_kilo_team"],
-            ["mwaluganje_routine_foot_patrol_alpha_team"],
-            ["MEP_routine_foot_patrol_alpha_team"],
-            ["MEP_routine_foot_patrol_charlie_team"],
-            ["MEP_routine_foot_patrol_golf_team"],
-            ["MEP_routine_foot_patrol_marmanet"],
-        ],
-        [W],
-    ),
-    sp(6),
-    h2("6.2  Trajectory segment filter"),
+    h2("6.1  Trajectory segment filter"),
     make_table(
         [
             ["Parameter", "Value"],
@@ -509,7 +455,7 @@ story += [
         [5*cm, W - 5*cm],
     ),
     sp(6),
-    h2("6.3  Colormap, map layer, and persistence"),
+    h2("6.2  Colormap, map layer, and persistence"),
     p("Identical to the vehicle patrol pipeline: viridis colormap on "
       "extra__patrol_type__value, path layer with legend <i>Patrol team</i>. "
       "Trajectories persisted as <b>foot_patrol_trajectories.geoparquet</b>, "
@@ -552,96 +498,10 @@ story += [
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 8. NDVI PIPELINE
+# 8. COLLAR VOLTAGE CHARTS
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("8. NDVI Trend Pipeline"),
-    hr(),
-    p("NDVI trend charts are generated for each named region of interest (ROI) "
-      "using Google Earth Engine. The pipeline uses <b>mapvalues</b> to fan out "
-      "the calculation across all ROIs in parallel."),
-    sp(6),
-    h2("8.1  ROI loading and preparation"),
-    make_table(
-        [
-            ["Step", "Task", "Detail"],
-            ["1", "fetch_and_persist_file",
-             "Download ROIs.gpkg from Dropbox (overwrite_existing: false, "
-             "retries: 3, unzip: false). Output path: ECOSCOPE_WORKFLOWS_RESULTS."],
-            ["2", "load_df",
-             "Load the GeoPackage file (layer: null, deserialize_json: false)."],
-            ["3", "transform_gdf_crs",
-             "Reproject to EPSG:4326."],
-            ["4", "split_groups",
-             "Split the GeoDataFrame by the 'name' grouper, producing one "
-             "GeoDataFrame per named ROI area."],
-        ],
-        [1.2*cm, 4*cm, W - 5.2*cm],
-    ),
-    sp(6),
-    h2("8.2  NDVI calculation (mapvalues)"),
-    p("Task: <b>calculate_ndvi_range</b>, fanned out via <b>mapvalues</b> "
-      "on argname <i>roi</i>. Parameters:"),
-    make_table(
-        [
-            ["Parameter", "Value"],
-            ["client",            "GEE connection"],
-            ["time_range",        "Analysis time range"],
-            ["ndvi_method",       "User-selected method (MODIS MYD13A1 or MCD43A4)"],
-            ["baseline_time_range","null (not configured)"],
-            ["image_size",        "1 000 000 000 (effectively unlimited)"],
-        ],
-        [5*cm, W - 5*cm],
-    ),
-    p("Results are persisted per ROI via <b>persist_df_wrapper</b> "
-      "(skipif: never, filename_prefix: ndvi, sanitize: true) to preserve "
-      "all NDVI time-series data regardless of empty-result conditions."),
-    sp(6),
-    h2("8.3  NDVI chart rendering"),
-    p("Task: <b>draw_historic_timeseries</b>, fanned out via <b>mapvalues</b> "
-      "on argname <i>dataframe</i>. Chart configuration:"),
-    make_table(
-        [
-            ["Parameter", "Value"],
-            ["current_value_column", "NDVI"],
-            ["current_value_title",  "NDVI"],
-            ["historic_min_column",  "min"],
-            ["historic_max_column",  "max"],
-            ["historic_mean_column", "mean"],
-            ["historic_band_title",  "Historic Min-Max"],
-            ["historic_mean_title",  "Historic Mean"],
-            ["upper_lower_band_style","lines, color rgba(144,238,144,0.8), "
-                                      "fill rgba(144,238,144,0.3)"],
-            ["time_column",          "img_date"],
-        ],
-        [5*cm, W - 5*cm],
-    ),
-    sp(6),
-    h2("8.4  Chart labelling and persistence"),
-    p("Area names are extracted from each ROI group via "
-      "<b>dataframe_column_first_unique_str</b> (column: 'name') then "
-      "sanitised by <b>clean_string</b>. "
-      "Charts and area names are paired via <b>zip_groupbykey</b> and "
-      "persisted as HTML files with the area name as filename_suffix. "
-      "Each HTML is then converted to PNG:"),
-    make_table(
-        [
-            ["Parameter", "Value"],
-            ["task",                 "html_to_png"],
-            ["device_scale_factor",  "2.0"],
-            ["wait_for_timeout",     "10 ms (static Plotly HTML)"],
-            ["max_concurrent_pages", "3"],
-        ],
-        [5*cm, W - 5*cm],
-    ),
-    PageBreak(),
-]
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 9. COLLAR VOLTAGE CHARTS
-# ══════════════════════════════════════════════════════════════════════════════
-story += [
-    h1("9. Collar Voltage Charts"),
+    h1("8. Collar Voltage Charts"),
     hr(),
     p("Per-subject collar voltage and GPS fix-rate charts are produced using "
       "a single compound task that handles all subjects in the group."),
@@ -669,15 +529,15 @@ story += [
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 10. WORD REPORT
+# 9. WORD REPORT
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("10. Word Report"),
+    h1("9. Word Report"),
     hr(),
     p("Two Word document templates are downloaded from Dropbox and populated "
       "with all computed outputs to produce the final MEP Monthly Report."),
     sp(6),
-    h2("10.1  Cover page"),
+    h2("9.1  Cover page"),
     make_table(
         [
             ["Step", "Task", "Detail"],
@@ -693,7 +553,7 @@ story += [
         [1.2*cm, 4.5*cm, W - 5.7*cm],
     ),
     sp(6),
-    h2("10.2  Content page"),
+    h2("9.2  Content page"),
     make_table(
         [
             ["Step", "Task", "Detail"],
@@ -702,39 +562,35 @@ story += [
             ["2", "create_mep_monthly_context",
              "Populate the content template with: elephant_sightings_map_path, "
              "speedmap_path, foot_patrols_map_path, vehicle_patrol_map_path, "
+             "subject_group (subject group name string), "
              "collared_elephant_plot_paths (list), sitrep_df_path. "
              "Output filename: mep_context.docx."],
         ],
         [1.2*cm, 4.5*cm, W - 5.7*cm],
     ),
     sp(6),
-    h2("10.3  Merge"),
+    h2("9.3  Merge"),
     p("Task: <b>merge_mapbook_files</b>. The cover page "
       "(<b>mep_cover_page.docx</b>) and content page (<b>mep_context.docx</b>) "
       "are merged into <b>overall_mep_monthly_report.docx</b> saved to "
       "ECOSCOPE_WORKFLOWS_RESULTS."),
-    note("NDVI charts are not passed to the Word report template directly — "
-         "they are available as standalone PNG files. Only sightings, "
-         "speedmap, patrol maps, collar charts, and sitrep are embedded "
-         "in the docx."),
     PageBreak(),
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 11. OUTPUT FILES
+# 10. OUTPUT FILES
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("11. Output Files"),
+    h1("10. Output Files"),
     hr(),
     p("All outputs are written to the directory specified by "
-      "<b>ECOSCOPE_WORKFLOWS_RESULTS</b>. Files marked with <i>&lt;area&gt;</i> "
-      "are produced once per ROI; files marked with <i>&lt;subject&gt;</i> "
+      "<b>ECOSCOPE_WORKFLOWS_RESULTS</b>. Files marked with <i>&lt;subject&gt;</i> "
       "are produced once per collared subject."),
     make_table(
         [
             ["File", "Description"],
             ["elephant_sightings_map.html / .png",
-             "Scatter map of mep_elephant_sighting events"],
+             "Scatter map of all events, coloured by event type (tab20)"],
             ["speedmap.html / .png",
              "GPS trajectories coloured by 6-bin speed classification"],
             ["vehicle_patrols_map.html / .png",
@@ -747,10 +603,6 @@ story += [
              "Raw foot patrol trajectory GeoDataFrame"],
             ["sitrep_report.csv",
              "Situation report: incident counts and categories by region"],
-            ["ndvi_<area>.html / .png",
-             "NDVI trend vs historic min/max/mean band per ROI area"],
-            ["ndvi_<area>.csv",
-             "NDVI time-series data per ROI area"],
             ["<subject>_collar_voltage.html / .png",
              "Collar voltage and GPS fix-rate chart (current vs previous period)"],
             ["mep_cover_page.docx",
@@ -766,12 +618,12 @@ story += [
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 12. WORKFLOW EXECUTION LOGIC
+# 11. WORKFLOW EXECUTION LOGIC
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("12. Workflow Execution Logic"),
+    h1("11. Workflow Execution Logic"),
     hr(),
-    h2("12.1  Global skip conditions"),
+    h2("11.1  Global skip conditions"),
     p("Most tasks carry the following default skipif block "
       "(<b>task-instance-defaults</b>):"),
     make_table(
@@ -783,50 +635,20 @@ story += [
         [5*cm, W - 5*cm],
     ),
     sp(6),
-    h2("12.2  Skip override: persist_ndvi_data"),
-    p("The <b>persist_ndvi_data</b> task explicitly sets "
-      "<b>skipif: conditions: [never]</b>, overriding the global default. "
-      "This ensures NDVI data is always written to disk even when some ROIs "
-      "return empty results during the analysis period."),
-    sp(6),
-    h2("12.3  mapvalues fan-out"),
-    p("Three tasks use <b>mapvalues</b> to iterate over a collection:"),
-    make_table(
-        [
-            ["Task", "argname", "Source collection"],
-            ["calculate_ndvi_range", "roi",
-             "split_roi_groups — one GeoDataFrame per named ROI area"],
-            ["draw_ndvi",            "dataframe",
-             "calculate_ndvi.return — one NDVI DataFrame per ROI"],
-            ["persist_ndvi",         "text + filename_suffix",
-             "zip_area_ndvi.return — NDVI chart HTML + sanitised area name"],
-        ],
-        [4.5*cm, 3*cm, W - 7.5*cm],
-    ),
-    sp(6),
-    h2("12.4  zip_groupbykey pairing"),
-    p("Before persisting NDVI charts, <b>zip_groupbykey</b> pairs the "
-      "draw_ndvi results (HTML chart strings) with the format_area_name "
-      "results (sanitised area name strings) by shared key. The combined "
-      "sequence is then expanded by mapvalues across two argnames "
-      "(<i>text</i> and <i>filename_suffix</i>) so each chart is saved "
-      "with the correct area name."),
-    sp(6),
-    h2("12.5  Screenshot timing"),
+    h2("11.2  Screenshot timing"),
     make_table(
         [
             ["Map / chart", "wait_for_timeout", "Reason"],
-            ["Elephant sightings map",  "40 000 ms", "Tile map — waits for base tile rendering"],
-            ["Speedmap",                "40 000 ms", "Tile map — waits for base tile rendering"],
-            ["Vehicle patrol map",      "40 000 ms", "Tile map — waits for base tile rendering"],
-            ["Foot patrol map",         "40 000 ms", "Tile map — waits for base tile rendering"],
-            ["NDVI charts",             "10 ms",     "Static Plotly HTML — no tiles"],
-            ["Collar voltage charts",   "10 ms",     "Static Plotly HTML — no tiles"],
+            ["Events scatter map",   "40 000 ms", "Tile map — waits for base tile rendering"],
+            ["Speedmap",             "40 000 ms", "Tile map — waits for base tile rendering"],
+            ["Vehicle patrol map",   "40 000 ms", "Tile map — waits for base tile rendering"],
+            ["Foot patrol map",      "40 000 ms", "Tile map — waits for base tile rendering"],
+            ["Collar voltage charts","10 ms",     "Static Plotly HTML — no tiles"],
         ],
         [4.5*cm, 3*cm, W - 7.5*cm],
     ),
     sp(6),
-    h2("12.6  Dashboard"),
+    h2("11.3  Dashboard"),
     p("The workflow concludes with <b>gather_dashboard</b> which packages "
       "workflow details, time range, and groupers into a dashboard record. "
       "The <b>widgets</b> list is currently empty — no single-value or map "
@@ -835,10 +657,10 @@ story += [
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 13. SOFTWARE VERSIONS
+# 12. SOFTWARE VERSIONS
 # ══════════════════════════════════════════════════════════════════════════════
 story += [
-    h1("13. Software Versions"),
+    h1("12. Software Versions"),
     hr(),
     make_table(
         [
@@ -849,7 +671,7 @@ story += [
             ["ecoscope-workflows-ext-ste",     "0.0.18.*"],
             ["ecoscope-workflows-ext-mnc",     "0.0.7.*"],
             ["ecoscope-workflows-ext-big-life","0.0.8.*"],
-            ["ecoscope-workflows-ext-mep",     "0.0.10.*"],
+            ["ecoscope-workflows-ext-mep",     "0.0.13.*"],
         ],
         [7*cm, W - 7*cm],
     ),
