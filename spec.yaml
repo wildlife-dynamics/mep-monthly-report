@@ -457,7 +457,7 @@ workflow:
       client: ${{ workflow.er_client_name.return }}
       time_range: ${{ workflow.time_range.return }}
       include_patrol_details: true
-      raise_on_empty: true
+      raise_on_empty: false
       sub_page_size: 100
       patrols_overlap_daterange: true
 
@@ -589,7 +589,7 @@ workflow:
       client: ${{ workflow.er_client_name.return }}
       time_range: ${{ workflow.time_range.return }}
       include_patrol_details: true
-      raise_on_empty: true
+      raise_on_empty: false
       sub_page_size: 100
       patrols_overlap_daterange: true
 

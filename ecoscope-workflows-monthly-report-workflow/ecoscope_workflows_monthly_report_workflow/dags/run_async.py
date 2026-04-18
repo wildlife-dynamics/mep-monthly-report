@@ -1021,7 +1021,7 @@ def main(params: Params):
                 "client": DependsOn("er_client_name"),
                 "time_range": DependsOn("time_range"),
                 "include_patrol_details": True,
-                "raise_on_empty": True,
+                "raise_on_empty": False,
                 "sub_page_size": 100,
                 "patrols_overlap_daterange": True,
             }
@@ -1272,7 +1272,7 @@ def main(params: Params):
                 "client": DependsOn("er_client_name"),
                 "time_range": DependsOn("time_range"),
                 "include_patrol_details": True,
-                "raise_on_empty": True,
+                "raise_on_empty": False,
                 "sub_page_size": 100,
                 "patrols_overlap_daterange": True,
             }
