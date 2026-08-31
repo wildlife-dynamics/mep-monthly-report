@@ -141,27 +141,34 @@ story += [
       "populated Word document."),
     sp(4),
     p("The workflow delivers:"),
-    bullet("1 events scatter map (all event types, coloured by type via tab20 palette)"),
+    bullet("1 events scatter map (all event types, coloured by type via tab20 palette) + 1 events CSV export"),
     bullet("1 elephant GPS speedmap"),
     bullet("1 vehicle patrol trajectories map"),
     bullet("1 foot patrol trajectories map"),
-    bullet("Per-subject collar voltage charts (one per collared animal)"),
-    bullet("1 sitrep CSV report"),
-    bullet("A Word document report — cover page + populated content page"),
+    bullet("Per-subject historic voltage charts — current voltage vs. a previous-period min/mean/max band"),
+    bullet("1 sitrep report — CSV export plus a sortable/filterable dashboard table"),
+    bullet("An interactive dashboard — 6 widgets: Collar Voltage, Elephant Sightings Map, Speed Map, "
+           "Vehicle Patrols Map, Foot Patrols Map, Sitrep Report"),
+    bullet("A Word document report (overall_report.docx) — every map, chart, and the sitrep table"),
+    bullet("A separate Word cover page — MEP logo (auto-downloaded), report period, prepared-by"),
     sp(6),
     h2("Output summary"),
     make_table(
         [
             ["Output type", "Count", "Description"],
+            ["Events CSV",                 "1",          "All fetched events with event_details flattened into columns"],
             ["Events scatter map",         "1",          "Scatter layer of all events, coloured by event type (tab20)"],
             ["Speedmap",                   "1",          "GPS trajectories coloured by 6-bin speed classification"],
             ["Vehicle patrol map",         "1",          "Vehicle patrol trajectories coloured by team (viridis)"],
             ["Foot patrol map",            "1",          "Foot patrol trajectories coloured by team (viridis)"],
             ["Vehicle patrol GeoParquet",  "1",          "Raw vehicle patrol trajectory data"],
             ["Foot patrol GeoParquet",     "1",          "Raw foot patrol trajectory data"],
-            ["Collar voltage charts",      "1 per subject", "Voltage/GPS fix timeline vs previous period"],
-            ["Sitrep CSV",                 "1",          "Situation report compiled from EarthRanger events"],
-            ["Word report",                "1",          "Cover page + content page merged into final docx"],
+            ["Relocations GeoParquet",     "2",          "Current-period and previous-period relocations, each with extracted voltage"],
+            ["Historic voltage charts",    "1 per subject", "Current voltage vs. previous-period min/mean/max band"],
+            ["Sitrep report",              "1",          "CSV export + sortable/filterable dashboard table"],
+            ["Dashboard widgets",          "6",          "Collar Voltage, Sightings, Speed, Vehicle, Foot, Sitrep"],
+            ["Word report",                "1",          "Content report (overall_report.docx), all maps/charts/sitrep"],
+            ["Word cover page",            "1",          "Separate document — MEP logo, report period, prepared-by"],
         ],
         [4.5*cm, 2.5*cm, W - 7*cm],
     ),
@@ -178,13 +185,12 @@ story += [
     make_table(
         [
             ["Package", "Version", "Channel"],
-            ["ecoscope-workflows-core",        "0.22.17.*", "ecoscope-workflows"],
-            ["ecoscope-workflows-ext-ecoscope","0.22.17.*", "ecoscope-workflows"],
-            ["ecoscope-workflows-ext-custom",  "0.0.40.*",  "ecoscope-workflows-custom"],
-            ["ecoscope-workflows-ext-ste",     "0.0.18.*",  "ecoscope-workflows-custom"],
-            ["ecoscope-workflows-ext-mnc",     "0.0.7.*",   "ecoscope-workflows-custom"],
-            ["ecoscope-workflows-ext-big-life","0.0.8.*",   "ecoscope-workflows-custom"],
-            ["ecoscope-workflows-ext-mep",     "0.0.13.*",  "ecoscope-workflows-custom"],
+            ["ecoscope-platform",              ">=2.15.0, <2.16.0", "ecoscope-workflows"],
+            ["ecoscope-workflows-ext-custom",  "0.1.0rc14.*",       "ecoscope-workflows-custom"],
+            ["ecoscope-workflows-ext-ste",     "0.0.0rc1.*",        "ecoscope-workflows-custom"],
+            ["ecoscope-workflows-ext-mep",     "1.0.1.*",           "ecoscope-workflows-custom"],
+            ["pydeck",                         "0.9.2",             "conda-forge"],
+            ["opentelemetry-sdk",              ">=1.20.0, <2.0.0",  "conda-forge"],
         ],
         [6.5*cm, 3*cm, W - 9.5*cm],
     ),
@@ -239,10 +245,10 @@ story += [
 story += [
     h1("3. Events Pipeline"),
     hr(),
-    p("All events within the analysis time range are fetched, cleaned, "
+    p("All events within the analysis time range are fetched, normalized, "
       "coloured by event type, and rendered as a scatter map."),
     sp(6),
-    h2("3.1  Event retrieval, cleaning, and colourmap"),
+    h2("3.1  Event retrieval, normalization, and colourmap"),
     make_table(
         [
             ["Step", "Task", "Detail"],
@@ -251,12 +257,12 @@ story += [
              "Columns retained: id, time, event_type, event_category, reported_by, "
              "serial_number, geometry, created_at, event_details. "
              "include_details: true, include_null_geometry: false, "
-             "raise_on_empty: true."],
-            ["2", "exclude_geom_outliers",
-             "Remove spatial outliers using z_threshold: 3 (flags points more than "
-             "3 standard deviations from the centroid)."],
-            ["3", "drop_null_geometry",
-             "Drop any rows with null geometry after outlier removal."],
+             "force_point_geometry: true, raise_on_empty: true."],
+            ["2", "normalize_json_column",
+             "Flatten the event_details JSON column into top-level columns "
+             "(skip_if_not_exists: true, sort_columns: true)."],
+            ["3", "persist_df",
+             "Persist the normalized events as events.csv to ECOSCOPE_WORKFLOWS_RESULTS."],
             ["4", "apply_color_map",
              "Apply the tab20 palette to the event_type column, writing colours "
              "to the output column event_type_colors. Each distinct event type "
@@ -264,21 +270,27 @@ story += [
         ],
         [1.2*cm, 4*cm, W - 5.2*cm],
     ),
+    note("Spatial-outlier exclusion and null-geometry dropping (previously "
+         "exclude_geom_outliers / drop_null_geometry) are no longer part of "
+         "this pipeline — events are fetched with force_point_geometry: true "
+         "and mapped directly."),
     sp(6),
     h2("3.2  Events scatter map"),
     make_table(
         [
             ["Parameter", "Value"],
-            ["Layer type",         "create_scatterplot_layer"],
+            ["Layer type",         "ecoscope_workflows_ext_custom.tasks.results.create_scatterplot_layer"],
             ["Fill color",         "event_type_colors (tab20, dynamic per event type)"],
             ["Line color",         "event_type_colors (same column)"],
             ["Line width",         "0.55"],
             ["Radius",             "3.55 m"],
-            ["Opacity",            "0.75"],
+            ["Opacity",            "0.55"],
             ["Stroked",            "true"],
             ["Legend title",       "Legend"],
             ["Legend label column","event_type"],
             ["Legend color column","event_type_colors"],
+            ["View state",         "compute_view_state_from_gdf (ext_ste), max_zoom: 15"],
+            ["Draw task",          "ecoscope_workflows_ext_custom.tasks.results.draw_map"],
             ["Max zoom",           "10"],
             ["Screenshot timeout", "40 000 ms (map tile rendering)"],
         ],
@@ -303,26 +315,36 @@ story += [
         [
             ["Step", "Task", "Detail"],
             ["1", "get_subjectgroup_observations",
-             "Fetch observations for the analysis period (filter: clean, "
+             "Fetch observations for the current time range (filter: clean, "
              "include_details: true, include_subjectsource_details: true, "
              "raise_on_empty: false)."],
-            ["2", "process_relocations",
+            ["2", "get_timezone_from_time_range → convert_values_to_timezone",
+             "Convert the fixtime column to the analysis timezone."],
+            ["3", "process_relocations",
              "Retain 12 columns: groupby_col, fixtime, junk_status, geometry, "
              "extra__subject__name, extra__subject__hex, extra__subject__sex, "
              "extra__created_at, extra__subject__subject_subtype, "
              "extra__subjectsource__id, extra__subjectsource__assigned_range, "
              "extra__observation_details. "
              "Filter 3 invalid coordinate pairs: (180,90), (0,0), (1,1)."],
+            ["4", "sort_values → persist_df",
+             "Sort by fixtime ascending, then persist as GeoParquet "
+             "(relocations.parquet). This sorted GeoDataFrame feeds both the "
+             "trajectory/speedmap pipeline below and the historic voltage "
+             "pipeline in Section 8."],
         ],
         [1.2*cm, 4*cm, W - 5.2*cm],
     ),
     sp(6),
     h2("4.2  Previous period observations"),
-    p("A parallel fetch retrieves observations for the <b>previous period</b> "
-      "(computed via <b>get_previous_period</b>) using identical parameters. "
-      "Both current and previous observations are passed to "
-      "<b>process_collar_voltage_charts</b> to generate per-subject collar "
-      "voltage and GPS fix-rate plots that compare the current and prior periods."),
+    p("A parallel fetch retrieves observations for a user-configurable "
+      "<b>Previous Period</b> (via "
+      "ecoscope_workflows_ext_ste.tasks.filter.flexible_previous_period — "
+      "Custom offset, a Preset lookback, or an exact Calendar date), processed "
+      "identically (timezone conversion, process_relocations, sort, persist "
+      "as previous_period_relocations.parquet). See Section 8 for how the "
+      "current and previous relocation sets are combined into the historic "
+      "voltage charts."),
     sp(6),
     h2("4.3  Trajectory segment filter"),
     make_table(
@@ -360,20 +382,23 @@ story += [
     make_table(
         [
             ["Parameter", "Value"],
-            ["Layer type",        "create_path_layer"],
+            ["Column filter",     "subset_columns (was: filter_df_cols), exclude: null, strict: false"],
+            ["Layer type",        "ecoscope_workflows_ext_custom.tasks.results.create_path_layer"],
             ["Color column",      "speed_bins_colormap"],
             ["Width",             "2.85, width_units: pixels, min 2 / max 8 px"],
             ["Cap / joint",       "rounded, billboard: false"],
             ["Opacity",           "0.55"],
             ["Legend",            "Speed (km/h), sorted ascending"],
+            ["View state",        "compute_view_state_from_gdf (ext_ste), max_zoom: 15"],
+            ["Draw task",         "ecoscope_workflows_ext_custom.tasks.results.draw_map"],
             ["Max zoom",          "10"],
             ["Screenshot timeout","40 000 ms"],
         ],
         [5*cm, W - 5*cm],
     ),
     p("Columns retained for the map layer: dist_meters, speed_bins_colormap, "
-      "geometry, speed_kmhr, speed_bins. The HTML is persisted with "
-      "filename_suffix: speedmap then converted to PNG."),
+      "geometry, speed_kmhr, speed_bins. The HTML is persisted as "
+      "<b>elephant_speedmap.html</b> (filename_suffix: null) then converted to PNG."),
     PageBreak(),
 ]
 
@@ -419,14 +444,20 @@ story += [
     h2("5.4  Colormap and map layer"),
     p("Trajectories are coloured by <b>extra__patrol_type__value</b> using the "
       "<b>viridis</b> colormap (task: apply_color_map, output_column: "
-      "patrol_type_colormap). A path layer is created with the same style "
-      "as the speedmap (width 2.85, opacity 0.55, rounded). Legend title: "
-      "<i>Patrol team</i>, sorted ascending."),
+      "patrol_type_colormap). A path layer is created via "
+      "<b>ecoscope_workflows_ext_custom.tasks.results.create_path_layer</b> "
+      "with the same style as the speedmap (width 2.85, opacity 0.55, "
+      "rounded). View state comes from "
+      "<b>ecoscope_workflows_ext_ste.tasks.spatial_operations."
+      "compute_view_state_from_gdf</b> (max_zoom: 15), and the map is drawn "
+      "via <b>ecoscope_workflows_ext_custom.tasks.results.draw_map</b>. "
+      "Legend title: <i>Patrol team</i>, sorted ascending."),
     sp(6),
     h2("5.5  Persistence"),
     p("Trajectories are persisted as <b>vehicle_patrol_trajectories.geoparquet</b>. "
-      "The map HTML is persisted as <b>vehicle_patrols_map.html</b> then "
-      "converted to PNG with a 40 000 ms screenshot timeout."),
+      "The map HTML is persisted as <b>vehicle_patrols_map.html</b> "
+      "(filename_suffix: null) then converted to PNG with a 40 000 ms "
+      "screenshot timeout."),
     PageBreak(),
 ]
 
@@ -456,10 +487,13 @@ story += [
     ),
     sp(6),
     h2("6.2  Colormap, map layer, and persistence"),
-    p("Identical to the vehicle patrol pipeline: viridis colormap on "
-      "extra__patrol_type__value, path layer with legend <i>Patrol team</i>. "
-      "Trajectories persisted as <b>foot_patrol_trajectories.geoparquet</b>, "
-      "map as <b>foot_patrols_map.html</b> → PNG (40 000 ms timeout)."),
+    p("Identical to the vehicle patrol pipeline (same renamespaced "
+      "create_path_layer / draw_map / compute_view_state_from_gdf tasks): "
+      "viridis colormap on extra__patrol_type__value, path layer with legend "
+      "<i>Patrol team</i>. Trajectories persisted as "
+      "<b>foot_patrol_trajectories.geoparquet</b>, map as "
+      "<b>foot_patrols_map.html</b> (filename_suffix: null) → PNG "
+      "(40 000 ms timeout)."),
     PageBreak(),
 ]
 
@@ -492,8 +526,25 @@ story += [
         [1.2*cm, 4*cm, W - 5.2*cm],
     ),
     sp(6),
-    note("The sitrep CSV is passed directly to create_mep_monthly_context "
-         "for inclusion in the Word report's content page."),
+    h2("7.2  Dashboard table"),
+    make_table(
+        [
+            ["Step", "Task", "Detail"],
+            ["1", "draw_table",
+             "Render the sitrep DataFrame as a sortable, filterable table "
+             "(enable_sorting: true, enable_filtering: true, "
+             "enable_download: false, widget_id: 'Sitrep Report')."],
+            ["2", "persist_text",
+             "Persist the rendered table HTML as sitrep_report_table.html."],
+            ["3", "create_table_widget_single_view",
+             "Wrap the table HTML as the 'Sitrep Report' dashboard widget."],
+        ],
+        [1.2*cm, 4*cm, W - 5.2*cm],
+    ),
+    note("The sitrep CSV (sitrep_report.csv) is picked up by filename when "
+         "create_mep_monthly_report scans ECOSCOPE_WORKFLOWS_RESULTS for "
+         "inclusion in the Word report's content — see Section 9.2 — while "
+         "the sitrep table above feeds the dashboard independently."),
     PageBreak(),
 ]
 
@@ -503,28 +554,77 @@ story += [
 story += [
     h1("8. Collar Voltage Charts"),
     hr(),
-    p("Per-subject collar voltage and GPS fix-rate charts are produced using "
-      "a single compound task that handles all subjects in the group."),
+    p("The single compound task previously used here "
+      "(process_collar_voltage_charts) has been replaced by an explicit, "
+      "reusable per-step pipeline shared with the standalone collar/source "
+      "voltage workflows, built on the sorted, timezone-converted current "
+      "and previous relocation GeoDataFrames from Section 4."),
     sp(6),
+    h2("8.1  Voltage extraction"),
+    p("Both relocation sets go through <b>extract_value_from_json_column</b> "
+      "against their <b>observation_details</b> column, producing a float "
+      "<b>voltage</b> column:"),
     make_table(
         [
             ["Parameter", "Value"],
-            ["task",             "process_collar_voltage_charts"],
-            ["relocs",           "Current-period subject observations (raw, not processed)"],
-            ["previous_relocs",  "Previous-period subject observations"],
-            ["time_range",       "Analysis time range"],
-            ["output_dir",       "ECOSCOPE_WORKFLOWS_RESULTS"],
+            ["column_name",        "observation_details"],
+            ["field_name_options", "battery, mainVoltage, batt, power (checked in this order)"],
+            ["output_type",        "float"],
+            ["output_column_name", "voltage"],
         ],
         [5*cm, W - 5*cm],
     ),
-    sp(4),
-    p("The task returns a list of HTML file paths — one chart file per collared "
-      "subject. These are passed to <b>html_to_png</b> (wait_for_timeout: 10 ms, "
-      "device_scale_factor: 2.0, max_concurrent_pages: 1) to produce PNG files "
-      "for inclusion in the Word report."),
-    note("process_collar_voltage_charts receives the raw observations "
-         "DataFrames (not the processed relocations GeoDataFrame), as it "
-         "requires the original voltage and transmission metadata columns."),
+    sp(6),
+    h2("8.2  Per-subject fan-out"),
+    make_table(
+        [
+            ["Step", "Task", "Detail"],
+            ["1", "split_groups",
+             "Split current and previous relocations by the configured grouper (name)"],
+            ["2", "column_first_unique_value",
+             "Get each subject's display name from the current-period slice"],
+            ["3", "safe_string (ext_ste)",
+             "Sanitize the subject name for use in a filename"],
+            ["4", "prefix_string_var",
+             "Build the chart filename: <safe_subject_name>_historic_voltage.html"],
+            ["5", "groupbykey",
+             "Pair each subject's current-period slice with its previous-period "
+             "slice (zip_current_prev_name)"],
+        ],
+        [1.2*cm, 3.5*cm, W - 4.7*cm],
+    ),
+    sp(6),
+    h2("8.3  Plotting"),
+    p("<b>plot_historic_voltage</b> (column: voltage) draws the subject's "
+      "current voltage series against a band built from the previous "
+      "period's 2.5th/97.5th percentile and mean. If the previous-period "
+      "slice is missing or empty, the current period's own values are used "
+      "for the band instead. If the computed band collapses to a single "
+      "value, it is widened by ±2.5% so the shaded region remains visible."),
+    sp(6),
+    h2("8.4  Persisting, widget, and PNG"),
+    make_table(
+        [
+            ["Step", "Task", "Detail"],
+            ["1", "groupbykey",
+             "Pair each chart's filename with its rendered HTML "
+             "(historic_voltage_text); skipped if any dependency was skipped "
+             "or any keyed pair is a skip (any_keyed_iterables_are_skips, "
+             "unpack_depth: 1)"],
+            ["2", "persist_text",
+             "Write the chart HTML to ECOSCOPE_WORKFLOWS_RESULTS "
+             "(filename_suffix: null — the filename built in 8.2 is used verbatim)"],
+            ["3", "create_map_widget_single_view",
+             "Title: 'Collar Voltage'; skipif: never, so a widget is always "
+             "created even if the underlying chart data is empty"],
+            ["4", "merge_widget_views",
+             "Merge every subject's widget into a single dashboard widget"],
+            ["5", "html_to_png",
+             "device_scale_factor: 2.0, wait_for_timeout: 10 ms, "
+             "max_concurrent_pages: 1, full_page: false"],
+        ],
+        [1.2*cm, 3.5*cm, W - 4.7*cm],
+    ),
     PageBreak(),
 ]
 
@@ -534,46 +634,54 @@ story += [
 story += [
     h1("9. Word Report"),
     hr(),
-    p("Two Word document templates are downloaded from Dropbox and populated "
-      "with all computed outputs to produce the final MEP Monthly Report."),
+    p("The cover page and the content report are now two separate final "
+      "documents — there is no longer a merge step producing a single "
+      "combined file."),
     sp(6),
     h2("9.1  Cover page"),
     make_table(
         [
             ["Step", "Task", "Detail"],
             ["1", "fetch_and_persist_file",
-             "Download mep_monthly_report.docx from Dropbox."],
-            ["2", "create_monthly_ctx_cover",
-             "Create cover context: report_period from analysis time range, "
-             "prepared_by: 'Ecoscope'."],
-            ["3", "create__mep_context_page",
-             "Populate the cover template with the context. "
-             "Output filename: mep_cover_page.docx."],
+             "Download mep_monthly_report.docx (cover template) from Dropbox."],
+            ["2", "ecoscope_workflows_ext_ste.tasks.io.fetch_and_persist_file",
+             "Download the MEP organisation logo (MEP-logo-dark-linear.png) "
+             "from Dropbox — always applied, not user-configurable "
+             "(overwrite_existing: false, retries: 2)."],
+            ["3", "prepare_cover_metadata",
+             "Build the cover context: org_logo_path (from step 2), "
+             "report_period (analysis time range), prepared_by: 'Ecoscope', "
+             "extra_fields: null, time_generated_format: '%Y-%m-%d %H:%M:%S'."],
+            ["4", "create_context_page",
+             "Populate the cover template with the context. skipif: "
+             "any_dependency_skipped (unpack_depth: 1). Output filename: "
+             "mep_monthly_cover_page.docx."],
         ],
         [1.2*cm, 4.5*cm, W - 5.7*cm],
     ),
     sp(6),
-    h2("9.2  Content page"),
+    h2("9.2  Content report"),
     make_table(
         [
             ["Step", "Task", "Detail"],
             ["1", "fetch_and_persist_file",
-             "Download mep_monthly_indv_report.docx from Dropbox."],
-            ["2", "create_mep_monthly_context",
-             "Populate the content template with: elephant_sightings_map_path, "
-             "speedmap_path, foot_patrols_map_path, vehicle_patrol_map_path, "
-             "subject_group (subject group name string), "
-             "collared_elephant_plot_paths (list), sitrep_df_path. "
-             "Output filename: mep_context.docx."],
+             "Download mep_monthly_indv_report.docx (content template) from Dropbox."],
+            ["2", "create_mep_monthly_report",
+             "Takes only template_path and output_dir — no explicit chart/CSV "
+             "paths. It walks ECOSCOPE_WORKFLOWS_RESULTS and classifies files "
+             "by their known filename stems: elephant_speedmap, "
+             "elephant_sightings_map, vehicle_patrols_map, foot_patrols_map "
+             "(single images), any <subject>_historic_voltage image (grouped "
+             "by subject, suffix stripped), and sitrep_report.csv (rendered "
+             "as the sitrep table). Output filename: overall_report.docx."],
         ],
         [1.2*cm, 4.5*cm, W - 5.7*cm],
     ),
-    sp(6),
-    h2("9.3  Merge"),
-    p("Task: <b>merge_mapbook_files</b>. The cover page "
-      "(<b>mep_cover_page.docx</b>) and content page (<b>mep_context.docx</b>) "
-      "are merged into <b>overall_mep_monthly_report.docx</b> saved to "
-      "ECOSCOPE_WORKFLOWS_RESULTS."),
+    note("Because the content report is assembled by scanning "
+         "ECOSCOPE_WORKFLOWS_RESULTS for these specific filenames rather than "
+         "receiving explicit paths, renaming any upstream persist_text / "
+         "persist_df filename above will silently drop that chart or table "
+         "from the report instead of raising an error."),
     PageBreak(),
 ]
 
@@ -589,9 +697,11 @@ story += [
     make_table(
         [
             ["File", "Description"],
+            ["events.csv",
+             "All fetched events with event_details flattened into columns"],
             ["elephant_sightings_map.html / .png",
              "Scatter map of all events, coloured by event type (tab20)"],
-            ["speedmap.html / .png",
+            ["elephant_speedmap.html / .png",
              "GPS trajectories coloured by 6-bin speed classification"],
             ["vehicle_patrols_map.html / .png",
              "Vehicle patrol trajectories coloured by team (viridis)"],
@@ -601,16 +711,20 @@ story += [
              "Raw vehicle patrol trajectory GeoDataFrame"],
             ["foot_patrol_trajectories.geoparquet",
              "Raw foot patrol trajectory GeoDataFrame"],
+            ["relocations.parquet",
+             "All subjects' current-period relocations, including extracted voltage"],
+            ["previous_period_relocations.parquet",
+             "All subjects' previous-period relocations, including extracted voltage"],
+            ["<subject>_historic_voltage.html / .png",
+             "Historic voltage chart — current voltage vs. previous-period min/mean/max band"],
             ["sitrep_report.csv",
              "Situation report: incident counts and categories by region"],
-            ["<subject>_collar_voltage.html / .png",
-             "Collar voltage and GPS fix-rate chart (current vs previous period)"],
-            ["mep_cover_page.docx",
-             "Populated Word cover page (report period, prepared by)"],
-            ["mep_context.docx",
-             "Populated Word content page (maps, charts, sitrep)"],
-            ["overall_mep_monthly_report.docx",
-             "Final merged Word report (cover + content)"],
+            ["sitrep_report_table.html",
+             "Sitrep report rendered as a sortable/filterable table (dashboard widget source)"],
+            ["mep_monthly_cover_page.docx",
+             "Populated Word cover page (MEP logo, report period, prepared by)"],
+            ["overall_report.docx",
+             "Final Word monthly report (every map, chart, and the sitrep table)"],
         ],
         [6.5*cm, W - 6.5*cm],
     ),
@@ -624,8 +738,10 @@ story += [
     h1("11. Workflow Execution Logic"),
     hr(),
     h2("11.1  Global skip conditions"),
-    p("Most tasks carry the following default skipif block "
-      "(<b>task-instance-defaults</b>):"),
+    p("Every task now inherits the same skip conditions from a single "
+      "top-level <b>task-instance-defaults</b> block, rather than each task "
+      "declaring its own identical skipif (previously duplicated across "
+      "roughly 30 individual task definitions):"),
     make_table(
         [
             ["Condition", "Behaviour"],
@@ -634,6 +750,15 @@ story += [
         ],
         [5*cm, W - 5*cm],
     ),
+    p("Two tasks override this default:"),
+    bullet("<b>collared_voltage_widget</b> uses <b>skipif: conditions: "
+           "[never]</b>, so a dashboard widget is always created even if the "
+           "underlying chart data is empty"),
+    bullet("<b>persist_cover_page</b> and <b>historic_voltage_text</b> use "
+           "<b>any_dependency_skipped</b> (the latter also "
+           "<b>any_keyed_iterables_are_skips</b>, unpack_depth: 1), so an "
+           "individual subject's filename/chart pair — or the cover page — "
+           "is skipped without failing the whole zip"),
     sp(6),
     h2("11.2  Screenshot timing"),
     make_table(
@@ -643,16 +768,29 @@ story += [
             ["Speedmap",             "40 000 ms", "Tile map — waits for base tile rendering"],
             ["Vehicle patrol map",   "40 000 ms", "Tile map — waits for base tile rendering"],
             ["Foot patrol map",      "40 000 ms", "Tile map — waits for base tile rendering"],
-            ["Collar voltage charts","10 ms",     "Static Plotly HTML — no tiles"],
+            ["Historic voltage charts","10 ms",   "Static Plotly HTML — no tiles"],
         ],
         [4.5*cm, 3*cm, W - 7.5*cm],
     ),
     sp(6),
     h2("11.3  Dashboard"),
-    p("The workflow concludes with <b>gather_dashboard</b> which packages "
-      "workflow details, time range, and groupers into a dashboard record. "
-      "The <b>widgets</b> list is currently empty — no single-value or map "
-      "widgets are configured for this workflow."),
+    p("The workflow concludes with <b>gather_dashboard</b>, which packages "
+      "workflow details, time range, groupers, and 6 widgets into the final "
+      "interactive dashboard:"),
+    make_table(
+        [
+            ["Widget", "Source"],
+            ["Collar Voltage",         "grouped_collared_widget (merged per-subject historic voltage charts)"],
+            ["Elephant Sightings Map", "sightings_map_widget (persist_sightings_urls)"],
+            ["Speed Map",              "speedmap_widget (persist_speedmap_html)"],
+            ["Vehicle Patrols Map",    "vehicle_map_widget (vehicle_patrol_map)"],
+            ["Foot Patrols Map",       "foot_map_widget (foot_patrol_map)"],
+            ["Sitrep Report",          "sitrep_table_widget (persist_sitrep_table_html)"],
+        ],
+        [5*cm, W - 5*cm],
+    ),
+    p("Previously the <b>widgets</b> list was empty — this workflow had no "
+      "interactive dashboard content beyond the Word report."),
     PageBreak(),
 ]
 
@@ -665,16 +803,21 @@ story += [
     make_table(
         [
             ["Package", "Version pinned in spec.yaml"],
-            ["ecoscope-workflows-core",        "0.22.17.*"],
-            ["ecoscope-workflows-ext-ecoscope","0.22.17.*"],
-            ["ecoscope-workflows-ext-custom",  "0.0.40.*"],
-            ["ecoscope-workflows-ext-ste",     "0.0.18.*"],
-            ["ecoscope-workflows-ext-mnc",     "0.0.7.*"],
-            ["ecoscope-workflows-ext-big-life","0.0.8.*"],
-            ["ecoscope-workflows-ext-mep",     "0.0.13.*"],
+            ["ecoscope-platform",              ">=2.15.0, <2.16.0"],
+            ["ecoscope-workflows-ext-custom",  "0.1.0rc14.*"],
+            ["ecoscope-workflows-ext-ste",     "0.0.0rc1.*"],
+            ["ecoscope-workflows-ext-mep",     "1.0.1.*"],
+            ["pydeck",                         "0.9.2"],
+            ["opentelemetry-sdk",              ">=1.20.0, <2.0.0"],
         ],
         [7*cm, W - 7*cm],
     ),
+    sp(6),
+    note("All packages are resolved from the prefix.dev Ecoscope conda "
+         "channels. ecoscope-workflows-ext-mnc, ecoscope-workflows-ext-big-life, "
+         "and ecoscope-workflows-ext-icf are no longer dependencies of this "
+         "workflow. ecoscope-workflows-ext-ste is pinned to a pre-release "
+         "(0.0.0rc1.*)."),
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
