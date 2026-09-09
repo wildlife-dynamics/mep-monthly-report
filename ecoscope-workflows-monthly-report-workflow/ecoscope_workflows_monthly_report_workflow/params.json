@@ -18,7 +18,7 @@
       ],
       "type": "object",
       "description": "Add information that will help to differentiate this workflow from another.",
-      "title": "Set Workflow Details"
+      "title": "Workflow Details"
     },
     "time_range": {
       "additionalProperties": false,
@@ -376,7 +376,7 @@
         "patrol_types"
       ],
       "type": "object",
-      "title": "Retrieve vehicle patrols"
+      "title": "Vehicle Patrol Types"
     },
     "foot_patrols": {
       "additionalProperties": false,
@@ -413,7 +413,7 @@
         "patrol_types"
       ],
       "type": "object",
-      "title": "Retrieve foot patrols"
+      "title": "Foot Patrol Types"
     }
   },
   "$defs": {

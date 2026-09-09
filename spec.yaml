@@ -38,7 +38,7 @@ rjsf-overrides:
 
 workflow:
   # set workflow details
-  - name: Set Workflow Details
+  - name: Workflow Details
     id: workflow_details
     task: set_workflow_details
 
@@ -624,7 +624,7 @@ workflow:
       filename: sitrep_report
       df: ${{ workflow.generate_sitrep_df.return }}
 
-  - name: Retrieve vehicle patrols
+  - name: Vehicle Patrol Types
     id: vehicle_patrols
     task: get_patrol_observations
     partial:
@@ -751,7 +751,7 @@ workflow:
       text: ${{ workflow.draw_vehicles_map.return }} # convert this to png
 
   # foot patrols
-  - name: Retrieve foot patrols
+  - name: Foot Patrol Types
     id: foot_patrols
     task: get_patrol_observations
     partial:
