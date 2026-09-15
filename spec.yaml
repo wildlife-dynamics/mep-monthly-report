@@ -991,6 +991,9 @@ workflow:
   - name: Create sightings map widget
     id: sightings_map_widget
     task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Elephant Sightings Map"
       data: ${{ workflow.persist_sightings_urls.return }}
@@ -998,6 +1001,9 @@ workflow:
   - name: Create speedmap widget
     id: speedmap_widget
     task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Speed Map"
       data: ${{ workflow.persist_speedmap_html.return }}
@@ -1005,6 +1011,9 @@ workflow:
   - name: Create vehicle patrol map widget
     id: vehicle_map_widget
     task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Vehicle Patrols Map"
       data: ${{ workflow.vehicle_patrol_map.return }}
@@ -1012,6 +1021,9 @@ workflow:
   - name: Create foot patrol map widget
     id: foot_map_widget
     task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Foot Patrols Map"
       data: ${{ workflow.foot_patrol_map.return }}
@@ -1041,6 +1053,9 @@ workflow:
   - name: Create sitrep report widget
     id: sitrep_table_widget
     task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
     partial:
       title: "Sitrep Report"
       data: ${{ workflow.persist_sitrep_table_html.return }}
