@@ -1,21 +1,10 @@
-name:  # Title Case, e.g. "My Ecoscope Workflow Template"
-
-# at least one author is required
+name: MEP Monthly Report
 author:
-  - name: ""
-    organization: ""
-    email: ""
+  - name: Tevin Temu
+    organization: Wildlife Dynamics
+    email: tevin@wildlifedynamics.com
 
-description: # A short description
-
-# todo: add example
-theory: "" # optional
-
-# todo: add example
-output_comment: "" # optional
-
-# optional
-# example
-# citation: 
-#   - Wu, Y. et al. (2025). "Monitoring elephant spatial patterns with Ecoscope workflows."
-citation: [] 
+description: Generates the Mara Elephant Project monthly report from EarthRanger events, elephant collar GPS tracks, and vehicle and foot patrols, producing event, speed, and patrol maps, per-subject collar voltage charts, and a situation report table, on an interactive dashboard and in a Word report.
+theory: "Collar voltage is extracted from each relocation's observation details and compared, per subject, against the minimum, mean, and maximum of a previous period that ends where the current period starts. Collar GPS tracks and vehicle and foot patrol tracks are converted to trajectory segments, with segments of unrealistic length, duration, or speed dropped using separate thresholds for vehicles (10 to 100 km/h) and foot patrols (0.5 to 9 km/h). Elephant movement speed is classified into 6 bins for the speed map, and incidents are summarised by region in a situation report."
+output_comment: "Outputs a 6-widget dashboard with collar voltage charts, an elephant sightings map coloured by event type, an elephant speed map, vehicle and foot patrol maps coloured by team, and a situation report table. Also writes all events (CSV), current- and previous-period relocations with voltage (Parquet), vehicle and foot patrol trajectories (GeoParquet), the situation report (CSV), HTML and PNG copies of every map and chart, a Word report (overall_report.docx), and a separate cover page (mep_monthly_cover_page.docx)."
+citation: []
