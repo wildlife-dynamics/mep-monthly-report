@@ -32,8 +32,32 @@ task-instance-defaults:
 
 rjsf-overrides:
   properties: 
-    Subject Group.properties.subject_group_var.properties.var.title: Subject Group Name
-    Subject Group.properties.subject_group_var.properties.var.default: Elephants
+    # EarthRanger fields are drop-downs filled from the data source chosen under Connect to EarthRanger
+    Subject Group.properties.subject_group_var.properties.var:
+      title: Subject Group Name
+      type: string
+      default: Elephants
+      description: The EarthRanger subject group to report on, picked from the chosen data source's subject groups.
+      ecoscope:transform:
+      - transformer: EarthRangerEnumResolver
+        transformer_kws:
+          type: subject_group_name
+          depends_on: properties.er_client_name.properties.data_source.properties.name
+    get_events_data.properties.event_types.ecoscope:transform:
+      - transformer: EarthRangerEnumResolver
+        transformer_kws:
+          type: event_type
+          depends_on: properties.er_client_name.properties.data_source.properties.name
+    vehicle_patrols.properties.patrol_types.ecoscope:transform:
+      - transformer: EarthRangerEnumResolver
+        transformer_kws:
+          type: patrol_type
+          depends_on: properties.er_client_name.properties.data_source.properties.name
+    foot_patrols.properties.patrol_types.ecoscope:transform:
+      - transformer: EarthRangerEnumResolver
+        transformer_kws:
+          type: patrol_type
+          depends_on: properties.er_client_name.properties.data_source.properties.name
     Previous Period.properties.set_previous_period.properties.offset.description: "Choose how to calculate the comparison period's Start Date. In every mode, the comparison period ends on your selected time range's Start Date (so it never overlaps with the current period) — only the Start Date changes."
 
 workflow:

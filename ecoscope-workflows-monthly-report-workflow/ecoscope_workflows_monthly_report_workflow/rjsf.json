@@ -293,7 +293,16 @@
           },
           "title": "Event Types",
           "type": "array",
-          "description": "Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types."
+          "description": "Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types.",
+          "ecoscope:transform": [
+            {
+              "transformer": "EarthRangerEnumResolver",
+              "transformer_kws": {
+                "type": "event_type",
+                "depends_on": "properties.er_client_name.properties.data_source.properties.name"
+              }
+            }
+          ]
         }
       },
       "required": [
@@ -313,7 +322,17 @@
             "var": {
               "title": "Subject Group Name",
               "type": "string",
-              "default": "Elephants"
+              "default": "Elephants",
+              "description": "The EarthRanger subject group to report on, picked from the chosen data source's subject groups.",
+              "ecoscope:transform": [
+                {
+                  "transformer": "EarthRangerEnumResolver",
+                  "transformer_kws": {
+                    "type": "subject_group_name",
+                    "depends_on": "properties.er_client_name.properties.data_source.properties.name"
+                  }
+                }
+              ]
             }
           },
           "required": [
@@ -365,7 +384,16 @@
           },
           "title": "Patrol Types",
           "type": "array",
-          "description": "Specify the patrol type(s) to analyze (optional). Leave empty to analyze all patrol types."
+          "description": "Specify the patrol type(s) to analyze (optional). Leave empty to analyze all patrol types.",
+          "ecoscope:transform": [
+            {
+              "transformer": "EarthRangerEnumResolver",
+              "transformer_kws": {
+                "type": "patrol_type",
+                "depends_on": "properties.er_client_name.properties.data_source.properties.name"
+              }
+            }
+          ]
         },
         "status": {
           "default": [
@@ -402,7 +430,16 @@
           },
           "title": "Patrol Types",
           "type": "array",
-          "description": "Specify the patrol type(s) to analyze (optional). Leave empty to analyze all patrol types."
+          "description": "Specify the patrol type(s) to analyze (optional). Leave empty to analyze all patrol types.",
+          "ecoscope:transform": [
+            {
+              "transformer": "EarthRangerEnumResolver",
+              "transformer_kws": {
+                "type": "patrol_type",
+                "depends_on": "properties.er_client_name.properties.data_source.properties.name"
+              }
+            }
+          ]
         },
         "status": {
           "default": [

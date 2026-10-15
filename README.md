@@ -101,11 +101,15 @@ Expand **Advanced Configurations** to select the base map tile layers displayed 
 
 **Connect to EarthRanger**
 
-Select the EarthRanger data source configured in Step 2 from the **Data Source** dropdown.
+Select the EarthRanger data source configured in Step 2 from the **Data Source** dropdown. Choose it first: the subject group, event type and patrol type drop-downs below list what's available on this data source.
+
+**Retrieve Events**
+
+Optionally pick one or more **Event Types** from the drop-down. Leave it empty to include all event types.
 
 **Subject Group**
 
-Enter the name of the EarthRanger subject group in the field (e.g. `MEP`). This group is used to generate historic voltage charts and the overall GPS speedmap.
+Pick the **Subject Group Name** from the drop-down of the data source's subject groups (defaults to `Elephants`). This group is used to generate historic voltage charts and the overall GPS speedmap.
 
 ---
 
@@ -129,6 +133,8 @@ The previous period's relocations are used solely to compute each subject's hist
 
 **Retrieve vehicle patrols**
 
+Pick the vehicle **Patrol Types** from the drop-down of the data source's patrol types. Leave it empty to include all patrol types.
+
 Expand **Advanced Configurations** to review or override the default vehicle patrol trajectory segment filter thresholds (max length: 5 000 m, max time: 18 000 s, speed: 10–100 km/h).
 
 ---
@@ -138,6 +144,8 @@ Expand **Advanced Configurations** to review or override the default vehicle pat
 Scroll down to configure the final section, then click **Submit**.
 
 **Retrieve foot patrols**
+
+Pick the foot **Patrol Types** from the drop-down of the data source's patrol types. Leave it empty to include all patrol types.
 
 Expand **Advanced Configurations** to review or override the default foot patrol trajectory segment filter thresholds (max length: 5 000 m, max time: 14 400 s, speed: 0.5–9 km/h).
 
