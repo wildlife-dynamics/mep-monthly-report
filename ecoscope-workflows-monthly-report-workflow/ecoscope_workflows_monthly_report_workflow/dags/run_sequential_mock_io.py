@@ -14,13 +14,11 @@ from ecoscope.platform.tasks.config import set_workflow_details as set_workflow_
 from ecoscope.platform.tasks.filter import set_time_range as set_time_range
 from ecoscope.platform.tasks.groupby import set_groupers as set_groupers
 from ecoscope.platform.tasks.io import set_er_connection as set_er_connection
+from ecoscope.platform.tasks.results import set_base_maps as set_base_maps
 from ecoscope.platform.tasks.skip import (
     any_dependency_skipped as any_dependency_skipped,
 )
 from ecoscope.platform.tasks.skip import any_is_empty_df as any_is_empty_df
-from ecoscope_workflows_ext_custom.tasks.results import (
-    set_base_maps_pydeck as set_base_maps_pydeck,
-)
 from wt_contracts import validate as _validate
 from wt_task import task
 from wt_task.testing import create_func_magicmock  # 🧪
@@ -34,14 +32,14 @@ get_events = create_func_magicmock(  # 🧪
 from ecoscope.platform.tasks.config import set_string_var as set_string_var
 from ecoscope.platform.tasks.io import persist_df as persist_df
 from ecoscope.platform.tasks.io import persist_text as persist_text
+from ecoscope.platform.tasks.results import (
+    create_scatterplot_layer as create_scatterplot_layer,
+)
+from ecoscope.platform.tasks.results import draw_map as draw_map
 from ecoscope.platform.tasks.transformation import apply_color_map as apply_color_map
 from ecoscope.platform.tasks.transformation import (
     normalize_json_column as normalize_json_column,
 )
-from ecoscope_workflows_ext_custom.tasks.results import (
-    create_scatterplot_layer as create_scatterplot_layer_1,
-)
-from ecoscope_workflows_ext_custom.tasks.results import draw_map as draw_map_1
 from ecoscope_workflows_ext_ste.tasks.spatial_operations import (
     compute_view_state_from_gdf as compute_view_state_from_gdf,
 )
@@ -76,6 +74,7 @@ from ecoscope.platform.tasks.preprocessing import (
 from ecoscope.platform.tasks.results import (
     create_map_widget_single_view as create_map_widget_single_view,
 )
+from ecoscope.platform.tasks.results import create_path_layer as create_path_layer
 from ecoscope.platform.tasks.results import merge_widget_views as merge_widget_views
 from ecoscope.platform.tasks.skip import (
     any_keyed_iterables_are_skips as any_keyed_iterables_are_skips,
@@ -92,9 +91,6 @@ from ecoscope.platform.tasks.transformation import (
 )
 from ecoscope.platform.tasks.transformation import sort_values as sort_values
 from ecoscope_workflows_ext_custom.tasks.io import html_to_png as html_to_png
-from ecoscope_workflows_ext_custom.tasks.results import (
-    create_path_layer as create_path_layer_1,
-)
 from ecoscope_workflows_ext_mep.tasks.results import compile_sitrep as compile_sitrep
 from ecoscope_workflows_ext_mep.tasks.results import (
     get_sitrep_event_config as get_sitrep_event_config,
@@ -196,7 +192,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     configure_base_maps = (
-        task(set_base_maps_pydeck)
+        task(set_base_maps)
         .validate()
         .set_task_instance_id("configure_base_maps")
         .handle_errors()
@@ -263,6 +259,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             include_null_geometry=False,
             include_display_values=False,
             force_point_geometry=True,
+            event_states="Resolved",
             **(params.get("get_events_data") or {}),
         )
         .call()
@@ -338,7 +335,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     generate_ev_layers = (
-        task(create_scatterplot_layer_1)
+        task(create_scatterplot_layer)
         .validate()
         .set_task_instance_id("generate_ev_layers")
         .handle_errors()
@@ -352,6 +349,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             data_url=None,
+            tooltip_columns=None,
             layer_style={
                 "get_fill_color": "event_type_colors",
                 "get_line_color": "event_type_colors",
@@ -389,7 +387,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .partial(
             pitch=0,
             bearing=0,
-            max_zoom=15,
+            max_zoom=13,
             gdf=apply_event_colormap,
             **(params.get("events_image_extent") or {}),
         )
@@ -397,7 +395,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     draw_sightings_map = (
-        task(draw_map_1)
+        task(draw_map)
         .validate()
         .set_task_instance_id("draw_sightings_map")
         .handle_errors()
@@ -410,6 +408,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            output_type="html",
             tile_layers=configure_base_maps,
             static=False,
             title=None,
@@ -483,6 +482,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             raise_on_empty=False,
             include_details=True,
             include_subjectsource_details=True,
+            include_subject_additional=False,
             **(params.get("subject_observations") or {}),
         )
         .call()
@@ -604,6 +604,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             raise_on_empty=False,
             include_details=True,
             include_subjectsource_details=True,
+            include_subject_additional=False,
             **(params.get("previous_subject_observations") or {}),
         )
         .call()
@@ -781,6 +782,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             field_name_options=["battery", "mainVoltage", "batt", "power"],
             output_type="float",
             output_column_name="voltage",
+            fan_out=True,
             **(params.get("extract_current_voltage") or {}),
         )
         .call()
@@ -805,6 +807,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             field_name_options=["battery", "mainVoltage", "batt", "power"],
             output_type="float",
             output_column_name="voltage",
+            fan_out=True,
             **(params.get("extract_previous_voltage") or {}),
         )
         .call()
@@ -1204,7 +1207,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     generate_speedmap_layers = (
-        task(create_path_layer_1)
+        task(create_path_layer)
         .validate()
         .set_task_instance_id("generate_speedmap_layers")
         .handle_errors()
@@ -1218,6 +1221,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             data_url=None,
+            tooltip_columns=None,
             layer_style={
                 "get_color": "speed_bins_colormap",
                 "get_width": 2.85,
@@ -1260,7 +1264,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .partial(
             pitch=0,
             bearing=0,
-            max_zoom=15,
+            max_zoom=13,
             gdf=filter_speed_cols,
             **(params.get("speed_image_extent") or {}),
         )
@@ -1268,7 +1272,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     draw_speedmap = (
-        task(draw_map_1)
+        task(draw_map)
         .validate()
         .set_task_instance_id("draw_speedmap")
         .handle_errors()
@@ -1281,6 +1285,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            output_type="html",
             tile_layers=configure_base_maps,
             static=False,
             title=None,
@@ -1533,7 +1538,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .partial(
             pitch=0,
             bearing=0,
-            max_zoom=15,
+            max_zoom=13,
             gdf=vehicle_traj_colormap,
             **(params.get("vehicle_extent") or {}),
         )
@@ -1541,7 +1546,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     vehicle_patrol_path_layer = (
-        task(create_path_layer_1)
+        task(create_path_layer)
         .validate()
         .set_task_instance_id("vehicle_patrol_path_layer")
         .handle_errors()
@@ -1555,6 +1560,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             data_url=None,
+            tooltip_columns=None,
             layer_style={
                 "get_color": "patrol_type_colormap",
                 "get_width": 2.85,
@@ -1582,7 +1588,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     draw_vehicles_map = (
-        task(draw_map_1)
+        task(draw_map)
         .validate()
         .set_task_instance_id("draw_vehicles_map")
         .handle_errors()
@@ -1595,6 +1601,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            output_type="html",
             tile_layers=configure_base_maps,
             static=False,
             title=None,
@@ -1785,7 +1792,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .partial(
             pitch=0,
             bearing=0,
-            max_zoom=15,
+            max_zoom=13,
             gdf=foot_traj_colormap,
             **(params.get("foot_image_extent") or {}),
         )
@@ -1793,7 +1800,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     foot_patrol_path_layer = (
-        task(create_path_layer_1)
+        task(create_path_layer)
         .validate()
         .set_task_instance_id("foot_patrol_path_layer")
         .handle_errors()
@@ -1807,6 +1814,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             data_url=None,
+            tooltip_columns=None,
             layer_style={
                 "get_color": "patrol_type_colormap",
                 "get_width": 2.85,
@@ -1834,7 +1842,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     draw_foot_map = (
-        task(draw_map_1)
+        task(draw_map)
         .validate()
         .set_task_instance_id("draw_foot_map")
         .handle_errors()
@@ -1847,6 +1855,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
+            output_type="html",
             tile_layers=configure_base_maps,
             static=False,
             title=None,
